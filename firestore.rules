@@ -1,0 +1,135 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidString(str, minLen, maxLen) {
+      return str is string && str.size() >= minLen && str.size() <= maxLen;
+    }
+
+    function isValidNumber(num) {
+      return num is number || num is int || num is float;
+    }
+
+    // Entity Validations
+    function isValidCarga(data) {
+      return data.keys().hasAll(['date', 'product', 'quantityTons', 'valuePerTon', 'totalValue', 'deductFromBalance'])
+        && isValidString(data.date, 8, 30)
+        && isValidString(data.product, 1, 150)
+        && isValidNumber(data.quantityTons) && data.quantityTons >= 0
+        && isValidNumber(data.valuePerTon) && data.valuePerTon >= 0
+        && isValidNumber(data.totalValue) && data.totalValue >= 0
+        && data.deductFromBalance is bool;
+    }
+
+    function isValidDeposito(data) {
+      return data.keys().hasAll(['date', 'value'])
+        && isValidString(data.date, 8, 30)
+        && isValidNumber(data.value) && data.value >= 0;
+    }
+
+    function isValidCliente(data) {
+      return data.keys().hasAll(['name'])
+        && isValidString(data.name, 1, 150);
+    }
+
+    function isValidVenda(data) {
+      return data.keys().hasAll(['date', 'clientName', 'product', 'quantity', 'unitPrice', 'totalValue', 'status'])
+        && isValidString(data.date, 8, 30)
+        && isValidString(data.clientName, 1, 150)
+        && isValidString(data.product, 1, 150)
+        && isValidNumber(data.quantity) && data.quantity >= 0
+        && isValidNumber(data.unitPrice) && data.unitPrice >= 0
+        && isValidNumber(data.totalValue) && data.totalValue >= 0
+        && (data.status == 'PENDING' || data.status == 'PAID' || data.status == 'CANCELLED');
+    }
+
+    function isValidProduto(data) {
+      return data.keys().hasAll(['name', 'referencePrice', 'unitOfMeasure', 'status'])
+        && isValidString(data.name, 1, 150)
+        && isValidNumber(data.referencePrice) && data.referencePrice >= 0
+        && isValidString(data.unitOfMeasure, 1, 20)
+        && (data.status == 'ACTIVE' || data.status == 'INACTIVE');
+    }
+
+    function isValidMotorista(data) {
+      return data.keys().hasAll(['name', 'licensePlate', 'status'])
+        && isValidString(data.name, 1, 150)
+        && isValidString(data.licensePlate, 1, 20)
+        && (data.status == 'ACTIVE' || data.status == 'INACTIVE');
+    }
+
+    function isValidAppSettings(data) {
+      return isValidNumber(data.freightRatePerTon) && data.freightRatePerTon >= 0;
+    }
+
+    // Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection test document
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Collections
+    match /cargas/{cargaId} {
+      allow read: if true;
+      allow create, update: if isValidId(cargaId) && isValidCarga(incoming());
+      allow delete: if isValidId(cargaId);
+    }
+
+    match /depositos/{depositoId} {
+      allow read: if true;
+      allow create, update: if isValidId(depositoId) && isValidDeposito(incoming());
+      allow delete: if isValidId(depositoId);
+    }
+
+    match /clientes/{clienteId} {
+      allow read: if true;
+      allow create, update: if isValidId(clienteId) && isValidCliente(incoming());
+      allow delete: if isValidId(clienteId);
+    }
+
+    match /vendas/{vendaId} {
+      allow read: if true;
+      allow create, update: if isValidId(vendaId) && isValidVenda(incoming());
+      allow delete: if isValidId(vendaId);
+    }
+
+    match /produtos/{produtoId} {
+      allow read: if true;
+      allow create, update: if isValidId(produtoId) && isValidProduto(incoming());
+      allow delete: if isValidId(produtoId);
+    }
+
+    match /motoristas/{motoristaId} {
+      allow read: if true;
+      allow create, update: if isValidId(motoristaId) && isValidMotorista(incoming());
+      allow delete: if isValidId(motoristaId);
+    }
+
+    match /settings/{settingId} {
+      allow read: if true;
+      allow create, update: if settingId == 'appSettings' && isValidAppSettings(incoming());
+      allow delete: if false;
+    }
+  }
+}

@@ -1,0 +1,23 @@
+# Dependências
+node_modules/
+
+# Builds gerados
+dist/
+release/
+coverage/
+
+# Build temporário, mantendo os assets oficiais do aplicativo
+build/*
+!build/1024x1024.png
+!build/icons/
+!build/icons/*.png
+
+# Arquivos do sistema
+.DS_Store
+
+# Logs
+*.log
+
+# Variáveis de ambiente
+.env*
+!.env.example

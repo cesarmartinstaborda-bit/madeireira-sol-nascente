@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "Carga": {
+      "title": "Carga de Madeira",
+      "description": "Registro de carga de madeira entregue",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "supplier": { "type": "string" },
+        "product": { "type": "string" },
+        "productId": { "type": "string" },
+        "quantityTons": { "type": "number" },
+        "unitOfMeasure": { "type": "string" },
+        "valuePerTon": { "type": "number" },
+        "totalValue": { "type": "number" },
+        "licensePlate": { "type": "string" },
+        "driverPlate": { "type": "string" },
+        "driverId": { "type": "string" },
+        "freightPayable": { "type": "boolean" },
+        "freightCost": { "type": "number" },
+        "freightStatus": { "type": "string" },
+        "freightPaidAt": { "type": "string" },
+        "transactionKey": { "type": "string" },
+        "notes": { "type": "string" },
+        "deductFromBalance": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["date", "product", "quantityTons", "valuePerTon", "totalValue", "deductFromBalance"]
+    },
+    "DepositoKlabin": {
+      "title": "Depósito Klabin",
+      "description": "Registro de depósito financeiro Klabin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "value": { "type": "number" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["date", "value"]
+    },
+    "Client": {
+      "title": "Cliente",
+      "description": "Registro de cliente cadastrado",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "Venda": {
+      "title": "Venda de Madeira",
+      "description": "Registro de venda para clientes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "productId": { "type": "string" },
+        "product": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unitOfMeasure": { "type": "string" },
+        "unitPrice": { "type": "number" },
+        "totalValue": { "type": "number" },
+        "status": { "type": "string" },
+        "paidAt": { "type": "string" },
+        "transactionKey": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["date", "clientName", "product", "quantity", "unitPrice", "totalValue", "status"]
+    },
+    "Produto": {
+      "title": "Produto",
+      "description": "Cadastro de produtos e tipos de madeira",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "referencePrice": { "type": "number" },
+        "unitOfMeasure": { "type": "string" },
+        "status": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "referencePrice", "unitOfMeasure", "status"]
+    },
+    "Motorista": {
+      "title": "Motorista",
+      "description": "Cadastro de motoristas e veículos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "licensePlate": { "type": "string" },
+        "trailerPlate": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["name", "licensePlate", "status"]
+    },
+    "AppSettings": {
+      "title": "Configurações da Empresa",
+      "description": "Parâmetros gerais do aplicativo",
+      "type": "object",
+      "properties": {
+        "freightRatePerTon": { "type": "number" },
+        "companyName": { "type": "string" },
+        "customLogo": { "type": "string" }
+      }
+    }
+  },
+  "firestore": {
+    "/cargas/{cargaId}": {
+      "schema": { "$ref": "#/entities/Carga" },
+      "description": "Coleção de cargas de madeira"
+    },
+    "/depositos/{depositoId}": {
+      "schema": { "$ref": "#/entities/DepositoKlabin" },
+      "description": "Coleção de depósitos bancários da Klabin"
+    },
+    "/clientes/{clienteId}": {
+      "schema": { "$ref": "#/entities/Client" },
+      "description": "Coleção de clientes cadastrados"
+    },
+    "/vendas/{vendaId}": {
+      "schema": { "$ref": "#/entities/Venda" },
+      "description": "Coleção de vendas de madeira"
+    },
+    "/produtos/{produtoId}": {
+      "schema": { "$ref": "#/entities/Produto" },
+      "description": "Catálogo de produtos"
+    },
+    "/motoristas/{motoristaId}": {
+      "schema": { "$ref": "#/entities/Motorista" },
+      "description": "Cadastro de motoristas e placas"
+    },
+    "/settings/appSettings": {
+      "schema": { "$ref": "#/entities/AppSettings" },
+      "description": "Documento único de configurações da empresa"
+    }
+  }
+}
