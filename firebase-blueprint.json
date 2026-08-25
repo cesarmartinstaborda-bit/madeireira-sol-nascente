@@ -1,0 +1,164 @@
+{
+  "entities": {
+    "Carga": {
+      "title": "Carga",
+      "description": "Registro de carga de madeira da Klabin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "invoiceNumber": { "type": "string" },
+        "supplier": { "type": "string" },
+        "supplierCnpj": { "type": "string" },
+        "product": { "type": "string" },
+        "productId": { "type": "string" },
+        "unitOfMeasure": { "type": "string" },
+        "quantityTons": { "type": "number" },
+        "valuePerTon": { "type": "number" },
+        "totalValue": { "type": "number" },
+        "driverPlate": { "type": "string" },
+        "licensePlate": { "type": "string" },
+        "driverId": { "type": "string" },
+        "motoristaId": { "type": "string" },
+        "freightPayable": { "type": "boolean" },
+        "freightCost": { "type": "number" },
+        "freightStatus": { "type": "string", "enum": ["PENDING", "PAID"] },
+        "freightPaidAt": { "type": "string" },
+        "transactionKey": { "type": "string" },
+        "deductFromBalance": { "type": "boolean" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "date", "quantityTons", "totalValue"]
+    },
+    "Deposito": {
+      "title": "Deposito",
+      "description": "Registro de depósito financeiro Klabin",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "value": { "type": "number" },
+        "notes": { "type": "string" }
+      },
+      "required": ["id", "date", "value"]
+    },
+    "Cliente": {
+      "title": "Cliente",
+      "description": "Registro de cliente da madeireira",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name"]
+    },
+    "Venda": {
+      "title": "Venda",
+      "description": "Registro de venda de produtos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "date": { "type": "string" },
+        "clientId": { "type": "string" },
+        "clientName": { "type": "string" },
+        "product": { "type": "string" },
+        "productId": { "type": "string" },
+        "unitOfMeasure": { "type": "string" },
+        "quantity": { "type": "number" },
+        "unitPrice": { "type": "number" },
+        "totalValue": { "type": "number" },
+        "status": { "type": "string", "enum": ["PENDING", "PAID", "CANCELLED"] },
+        "paidAt": { "type": "string" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "freightPayable": { "type": "boolean" },
+        "freightCost": { "type": "number" },
+        "freightStatus": { "type": "string", "enum": ["PENDING", "PAID"] },
+        "freightPaidAt": { "type": "string" },
+        "transactionKey": { "type": "string" },
+        "driverId": { "type": "string" },
+        "driverPlate": { "type": "string" },
+        "licensePlate": { "type": "string" },
+        "motoristaId": { "type": "string" }
+      },
+      "required": ["id", "date", "clientId", "clientName", "product", "quantity", "unitPrice", "totalValue", "status"]
+    },
+    "Produto": {
+      "title": "Produto",
+      "description": "Registro de produto do catálogo",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "unitOfMeasure": { "type": "string" },
+        "referencePrice": { "type": "number" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "unitOfMeasure", "referencePrice", "status"]
+    },
+    "Motorista": {
+      "title": "Motorista",
+      "description": "Registro de motorista de frete",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "licensePlate": { "type": "string" },
+        "trailerPlate": { "type": "string" },
+        "phone": { "type": "string" },
+        "pixKey": { "type": "string" },
+        "status": { "type": "string", "enum": ["ACTIVE", "INACTIVE"] },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "licensePlate"]
+    },
+    "Setting": {
+      "title": "Setting",
+      "description": "Configurações globais e de ciclos",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "freightRatePerTon": { "type": "number" },
+        "company": { "type": "object" },
+        "klabin": { "type": "object" },
+        "freight": { "type": "object" },
+        "cycles": { "type": "object" },
+        "lockedMonths": { "type": "array" }
+      }
+    }
+  },
+  "firestore": {
+    "/cargas/{cargaId}": {
+      "schema": "Carga",
+      "description": "Coleção de cargas Klabin"
+    },
+    "/depositos/{depositoId}": {
+      "schema": "Deposito",
+      "description": "Coleção de depósitos Klabin"
+    },
+    "/clientes/{clienteId}": {
+      "schema": "Cliente",
+      "description": "Coleção de clientes cadastrados"
+    },
+    "/vendas/{vendaId}": {
+      "schema": "Venda",
+      "description": "Coleção de vendas realizadas"
+    },
+    "/produtos/{produtoId}": {
+      "schema": "Produto",
+      "description": "Coleção de produtos e preços"
+    },
+    "/motoristas/{motoristaId}": {
+      "schema": "Motorista",
+      "description": "Coleção de motoristas e frotas"
+    },
+    "/settings/{settingId}": {
+      "schema": "Setting",
+      "description": "Configurações do sistema"
+    }
+  }
+}

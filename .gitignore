@@ -1,0 +1,24 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Ruflo local secrets and runtime data
+.env
+.env.local
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/
+release/
+.claude-flow/
+.swarm/
+ruvector.db
+.claude/settings.local.json
+.claude/daemon.pid
+.claude/daemon-state.json
+.claude/proven-config.json

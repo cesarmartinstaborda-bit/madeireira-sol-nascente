@@ -1,0 +1,200 @@
+@import "tailwindcss";
+
+:root {
+  /* Graphite Pro Palette */
+  --graphite-bg: #0f1115;
+  --graphite-window: #16191f;
+  --graphite-surface-1: #1c2027;
+  --graphite-surface-2: #232832;
+  --graphite-surface-3: #2c3340;
+  
+  --graphite-border-subtle: rgba(255, 255, 255, 0.06);
+  --graphite-border-base: rgba(255, 255, 255, 0.12);
+  --graphite-border-strong: rgba(255, 255, 255, 0.20);
+  
+  --graphite-text-primary: #f3f4f6;
+  --graphite-text-secondary: #9ca3af;
+  --graphite-text-tertiary: #6b7280;
+  
+  --graphite-accent-blue: #0a84ff;
+  --graphite-accent-blue-hover: #0070e0;
+  --graphite-accent-blue-subtle: rgba(10, 132, 255, 0.15);
+  
+  --semantic-success: #10b981;
+  --semantic-success-subtle: rgba(16, 185, 129, 0.15);
+  --semantic-warning: #f59e0b;
+  --semantic-warning-subtle: rgba(245, 158, 11, 0.15);
+  --semantic-danger: #ef4444;
+  --semantic-danger-subtle: rgba(239, 68, 68, 0.15);
+}
+
+body {
+  margin: 0;
+  background-color: var(--graphite-bg);
+  color: var(--graphite-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Graphite Pro Desktop Components */
+.mac-window {
+  background-color: var(--graphite-bg);
+  color: var(--graphite-text-primary);
+  min-height: 100vh;
+}
+
+.mac-sidebar {
+  background: #14171d;
+  border-right: 1px solid var(--graphite-border-subtle);
+}
+
+.mac-toolbar {
+  background: rgba(22, 25, 31, 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--graphite-border-subtle);
+}
+
+.glass-card {
+  background: rgba(28, 32, 39, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--graphite-border-subtle);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-card:hover {
+  border-color: var(--graphite-border-base);
+}
+
+.glass-card-static {
+  background: rgba(28, 32, 39, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--graphite-border-subtle);
+  border-radius: 14px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+}
+
+.mac-button-primary {
+  background-color: var(--graphite-accent-blue);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mac-button-primary:hover {
+  background-color: var(--graphite-accent-blue-hover);
+  box-shadow: 0 2px 6px rgba(10, 132, 255, 0.4);
+}
+
+.mac-button-primary:active {
+  transform: scale(0.98);
+}
+
+.mac-button-secondary {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: var(--graphite-text-primary);
+  font-weight: 500;
+  font-size: 0.75rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 8px;
+  border: 1px solid var(--graphite-border-subtle);
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mac-button-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.13);
+  border-color: var(--graphite-border-base);
+}
+
+.mac-segmented-control {
+  display: inline-flex;
+  padding: 3px;
+  background-color: #121419;
+  border: 1px solid var(--graphite-border-subtle);
+  border-radius: 10px;
+  gap: 2px;
+}
+
+.mac-segmented-item {
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--graphite-text-secondary);
+  border-radius: 7px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.mac-segmented-item:hover {
+  color: var(--graphite-text-primary);
+}
+
+.mac-segmented-item-active {
+  background-color: var(--graphite-surface-2);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--graphite-border-base);
+}
+
+.mac-table-container {
+  background: var(--graphite-surface-1);
+  border: 1px solid var(--graphite-border-subtle);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.mac-table-header {
+  background: rgba(18, 20, 25, 0.95);
+  border-bottom: 1px solid var(--graphite-border-subtle);
+  color: var(--graphite-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mac-table-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background-color 0.15s ease;
+}
+
+.mac-table-row:hover {
+  background-color: rgba(255, 255, 255, 0.03);
+}

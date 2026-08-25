@@ -1,0 +1,61 @@
+{
+  "name": "madeireira-sol-nascente",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sistema de gestão operacional da Madeireira Sol Nascente",
+  "main": "electron.js",
+  "scripts": {
+    "dev": "vite --port=3000 --host=0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview",
+    "clean": "rm -rf dist release",
+    "lint": "tsc --noEmit",
+    "electron:dev": "concurrently \"npm run dev\" \"npx electron .\"",
+    "electron:build": "npm run build && electron-builder --linux AppImage",
+    "dist:linux": "npm run build && electron-builder --linux AppImage"
+  },
+  "dependencies": {
+    "firebase": "^12.18.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
+    "lucide-react": "^0.546.0",
+    "motion": "^12.23.24",
+    "react": "^19.0.1",
+    "react-dom": "^19.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.14",
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^9.1.2",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8",
+    "tailwindcss": "^4.1.14",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.3"
+  },
+  "build": {
+    "appId": "com.madeireirasolnascente.app",
+    "productName": "Madeireira Sol Nascente",
+    "artifactName": "Madeireira-Sol-Nascente-${version}.${ext}",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron.js",
+      "preload.js",
+      "package.json"
+    ],
+    "asar": true,
+    "win": {
+      "target": "nsis"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Gestão Klabin - Cargas e Caixa",
+  "description": "Sistema de Gestão de Cargas de Madeira, Rastreamento de Frete e Controle de Fluxo de Caixa Klabin.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
