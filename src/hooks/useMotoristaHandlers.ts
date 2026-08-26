@@ -13,10 +13,10 @@ interface UseMotoristaHandlersParams {
  * Takes the whole `database` rather than just the Motoristas slice: deleting a driver
  * checks Cargas and Vendas for linked records and soft-deletes (INACTIVE) when any exist.
  *
- * Note: this is not the only writer of `Motoristas` — the generic modal path in
- * `handleSaveRecord` also writes the collection when `modalTableType === 'Motoristas'`.
- * Freight payment handlers live in `useFreightHandlers`: they are keyed by driver but
- * write Cargas/Vendas, not Motoristas.
+ * `Motoristas` is owned exclusively here — the generic `RecordModal` (App.tsx's
+ * `handleSaveRecord`) only ever renders Carga/Depósito forms and never targets this
+ * collection. Freight payment handlers live in `useFreightHandlers`: they are keyed by
+ * driver but write Cargas/Vendas, not Motoristas.
  */
 export function useMotoristaHandlers({
   database,

@@ -1,7 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
   TableType,
-  KlabinDatabase,
   ResumoRecord,
   CaixaRecord,
   AppSettings,
@@ -13,7 +12,6 @@ import {
   createAutoBackup,
 } from './utils/storage';
 import {
-  upsertFirestoreRecord,
   syncFirestoreSettings,
   restoreFirestoreAuthoritatively,
 } from './utils/firebaseSync';
@@ -225,57 +223,6 @@ export default function App() {
     setIsModalOpen(true);
   };
 
-  const handleSaveRecord = (savedRecord: any): boolean => {
-    if (activeTable === 'Dashboard') return false;
-
-    if (savedRecord && savedRecord.date && isDateLocked(savedRecord.date)) {
-      showToast('Operação bloqueada: não é possível salvar lançamentos em mês trancado no Fechamento de Ciclo.');
-      return false;
-    }
-
-    let targetTableKey: keyof KlabinDatabase = 'Cargas';
-    let firestoreCollection: string = 'cargas';
-
-    if (modalTableType === 'Depositos_Klabin') {
-      targetTableKey = 'Depositos_Klabin';
-      firestoreCollection = 'depositos';
-    } else if (modalTableType === 'Cargas') {
-      targetTableKey = 'Cargas';
-      firestoreCollection = 'cargas';
-    } else if (modalTableType === 'Gestao_Clientes' || modalTableType === 'Vendas' || modalTableType === 'Clientes_Produtos') {
-      targetTableKey = 'Vendas';
-      firestoreCollection = 'vendas';
-    } else if (modalTableType === 'Produtos') {
-      targetTableKey = 'Produtos';
-      firestoreCollection = 'produtos';
-    } else if (modalTableType === 'Motoristas') {
-      targetTableKey = 'Motoristas';
-      firestoreCollection = 'motoristas';
-    }
-
-    mutateDatabase((prev) => {
-      const currentList = [...((prev[targetTableKey] as any[]) || [])];
-      const existingIndex = currentList.findIndex((item) => item.id === savedRecord.id);
-
-      if (existingIndex >= 0) {
-        currentList[existingIndex] = savedRecord;
-      } else {
-        currentList.push(savedRecord);
-      }
-
-      return {
-        ...prev,
-        [targetTableKey]: currentList,
-      };
-    });
-
-    upsertFirestoreRecord(firestoreCollection, savedRecord);
-
-    const entityLabel = targetTableKey === 'Depositos_Klabin' ? 'Depósito Klabin' : targetTableKey === 'Cargas' ? 'Carga' : 'Registro';
-    showToast(`${entityLabel} salvo com sucesso.`);
-    return true;
-  };
-
   // CARGAS & DEPOSITOS HANDLERS
   const {
     handleUpdateCargaRecord,
@@ -285,12 +232,20 @@ export default function App() {
     handleConfirmDelete,
     confirmDeleteTarget,
     cancelDelete,
+    handleSaveCargaOrDeposito,
   } = useCargaDepositoHandlers({
     database,
     mutateDatabase,
     showToast,
     isDateLocked,
   });
+
+  // Generic RecordModal dispatcher — delegates the upsert to whichever domain hook
+  // owns the target collection. Only Cargas/Depositos_Klabin are reachable today.
+  const handleSaveRecord = (savedRecord: any): boolean => {
+    if (activeTable === 'Dashboard') return false;
+    return handleSaveCargaOrDeposito(modalTableType, savedRecord);
+  };
 
   // MOTORISTAS HANDLERS
   const { handleAddMotorista, handleUpdateMotorista, handleDeleteDriver } = useMotoristaHandlers({
@@ -653,9 +608,6 @@ export default function App() {
               motoristas={database.Motoristas || []}
               freightRatePerTon={database.appSettings?.freightRatePerTon || 15}
               searchTerm={searchTerm}
-              onEdit={handleEditRecord}
-              onDelete={handleDeleteCarga}
-              onAdd={handleAddRecord}
               onPayFreight={handlePayFreightForDriver}
               onRevertFreight={handleRevertFreightForDriver}
               onToggleSingleFreight={handleToggleSingleFreight}

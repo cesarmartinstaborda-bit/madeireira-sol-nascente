@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KlabinDatabase, CargaRecord, DepositoKlabinRecord } from '../types';
+import { KlabinDatabase, CargaRecord, DepositoKlabinRecord, TableType } from '../types';
 import { upsertFirestoreRecord, deleteFirestoreRecord } from '../utils/firebaseSync';
 
 interface UseCargaDepositoHandlersParams {
@@ -20,8 +20,9 @@ interface UseCargaDepositoHandlersParams {
  *
  * `isDateLocked` is injected: every mutation here respects `appSettings.cycles.lockedMonths`.
  *
- * Note: neither is solely owned here. `handleSaveRecord` writes both (with Cargas as its
- * default target), and `useFreightHandlers` also writes Cargas when settling freight.
+ * `handleSaveCargaOrDeposito` is the sole owner of the generic modal's upsert path for
+ * these two collections (App.tsx's `handleSaveRecord` is a thin dispatcher to it).
+ * `useFreightHandlers` also writes Cargas when settling freight.
  */
 export function useCargaDepositoHandlers({
   database,
@@ -101,6 +102,44 @@ export function useCargaDepositoHandlers({
   /** Dismiss the staged deletion without removing anything. */
   const cancelDelete = () => setConfirmDeleteTarget(null);
 
+  /**
+   * Upsert entry point for the generic `RecordModal` — used for both new and edited
+   * Cargas/Depositos_Klabin. `modalTableType` selects the target: anything other than
+   * `'Depositos_Klabin'` falls back to Cargas, matching the modal's own two-form design.
+   */
+  const handleSaveCargaOrDeposito = (modalTableType: TableType, savedRecord: any): boolean => {
+    if (savedRecord && savedRecord.date && isDateLocked(savedRecord.date)) {
+      showToast('Operação bloqueada: não é possível salvar lançamentos em mês trancado no Fechamento de Ciclo.');
+      return false;
+    }
+
+    const targetTableKey: keyof KlabinDatabase =
+      modalTableType === 'Depositos_Klabin' ? 'Depositos_Klabin' : 'Cargas';
+    const firestoreCollection = targetTableKey === 'Depositos_Klabin' ? 'depositos' : 'cargas';
+
+    mutateDatabase((prev) => {
+      const currentList = [...((prev[targetTableKey] as any[]) || [])];
+      const existingIndex = currentList.findIndex((item) => item.id === savedRecord.id);
+
+      if (existingIndex >= 0) {
+        currentList[existingIndex] = savedRecord;
+      } else {
+        currentList.push(savedRecord);
+      }
+
+      return {
+        ...prev,
+        [targetTableKey]: currentList,
+      };
+    });
+
+    upsertFirestoreRecord(firestoreCollection, savedRecord);
+
+    const entityLabel = targetTableKey === 'Depositos_Klabin' ? 'Depósito Klabin' : 'Carga';
+    showToast(`${entityLabel} salvo com sucesso.`);
+    return true;
+  };
+
   return {
     handleUpdateCargaRecord,
     handleUpdateDepositoRecord,
@@ -109,5 +148,6 @@ export function useCargaDepositoHandlers({
     handleConfirmDelete,
     confirmDeleteTarget,
     cancelDelete,
+    handleSaveCargaOrDeposito,
   };
 }

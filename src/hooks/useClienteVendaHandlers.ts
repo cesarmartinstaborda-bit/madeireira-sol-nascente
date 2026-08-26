@@ -17,8 +17,8 @@ interface UseClienteVendaHandlersParams {
  * (Clientes have no date field and are never locked).
  *
  * Note on ownership: `Clientes` is written exclusively here. `Vendas` is not — the generic
- * modal path in `handleSaveRecord` also writes it (`modalTableType === 'Gestao_Clientes' |
- * 'Vendas' | 'Clientes_Produtos'`), and `useFreightHandlers` writes it too when settling
+ * `RecordModal` (App.tsx's `handleSaveRecord`) never targets it (it only ever renders
+ * Carga/Depósito forms), but `useFreightHandlers` writes `Vendas` too when settling
  * freight for a driver's sales.
  */
 export function useClienteVendaHandlers({

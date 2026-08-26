@@ -13,9 +13,6 @@ interface TableMotoristasProps {
   motoristas: MotoristaRecord[];
   freightRatePerTon: number;
   searchTerm: string;
-  onEdit: (record: any) => void;
-  onDelete: (id: string) => void;
-  onAdd: () => void;
   onPayFreight: (driverKeyOrId: string, transactionKey?: string) => void;
   onRevertFreight: (driverKeyOrId: string) => void;
   onToggleSingleFreight: (type: 'CARGA' | 'VENDA', recordId: string, transactionKey?: string) => void;
@@ -33,9 +30,6 @@ export const TableMotoristas: React.FC<TableMotoristasProps> = ({
   motoristas,
   freightRatePerTon,
   searchTerm,
-  onEdit,
-  onDelete,
-  onAdd,
   onPayFreight,
   onRevertFreight,
   onToggleSingleFreight,

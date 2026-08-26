@@ -15,8 +15,9 @@ interface UseProdutoHandlersParams {
  * checks Cargas and Vendas for existing references, and soft-deletes (INACTIVE) instead
  * of removing when any history exists.
  *
- * Note: this is not the only writer of `Produtos` — the generic modal path in
- * `handleSaveRecord` also writes the collection when `modalTableType === 'Produtos'`.
+ * `Produtos` is owned exclusively here — the generic `RecordModal` (App.tsx's
+ * `handleSaveRecord`) only ever renders Carga/Depósito forms and never targets this
+ * collection.
  */
 export function useProdutoHandlers({
   database,
