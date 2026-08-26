@@ -334,6 +334,26 @@ export async function checkAndSeedFirestoreIfEmpty(database: KlabinDatabase): Pr
 }
 
 /**
+ * Guards against treating an empty cache-only snapshot as authoritative.
+ * When Firestore can't reach the backend (e.g. misconfigured database id), the SDK
+ * may still resolve onSnapshot from an empty local cache instead of erroring out.
+ * Only a snapshot confirmed by the server (fromCache === false) may report emptiness
+ * as real; an empty snapshot still pending server confirmation is discarded.
+ */
+function isUnconfirmedEmptySnapshot(
+  snap: { empty: boolean; metadata: { fromCache: boolean } },
+  label: string
+): boolean {
+  if (snap.empty && snap.metadata.fromCache) {
+    console.warn(
+      `[Firestore] Snapshot vazio de ${label} veio do cache local (sem confirmação do servidor); mantendo estado local atual.`
+    );
+    return true;
+  }
+  return false;
+}
+
+/**
  * Subscribes to all 6 Firestore collections and settings in realtime.
  * Sends authoritative collection snapshots to the callback to ensure creations, updates,
  * and remote deletions are accurately reflected without resurrection.
@@ -354,6 +374,7 @@ export function subscribeToFirestore(
       collection(firestore, 'cargas'),
       (snap) => {
         if (isSyncSuspended) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'cargas')) return;
         recordSuccessfulSync();
         const list: CargaRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as CargaRecord));
@@ -368,6 +389,7 @@ export function subscribeToFirestore(
       collection(firestore, 'depositos'),
       (snap) => {
         if (isSyncSuspended) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'depositos')) return;
         recordSuccessfulSync();
         const list: DepositoKlabinRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as DepositoKlabinRecord));
@@ -382,6 +404,7 @@ export function subscribeToFirestore(
       collection(firestore, 'clientes'),
       (snap) => {
         if (isSyncSuspended) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'clientes')) return;
         recordSuccessfulSync();
         const list: ClientRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as ClientRecord));
@@ -396,6 +419,7 @@ export function subscribeToFirestore(
       collection(firestore, 'vendas'),
       (snap) => {
         if (isSyncSuspended) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'vendas')) return;
         recordSuccessfulSync();
         const list: VendaRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as VendaRecord));
@@ -410,6 +434,7 @@ export function subscribeToFirestore(
       collection(firestore, 'produtos'),
       (snap) => {
         if (isSyncSuspended) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'produtos')) return;
         recordSuccessfulSync();
         const list: ProdutoRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as ProdutoRecord));
@@ -424,6 +449,7 @@ export function subscribeToFirestore(
       collection(firestore, 'motoristas'),
       (snap) => {
         if (isSyncSuspended) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'motoristas')) return;
         recordSuccessfulSync();
         const list: MotoristaRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as MotoristaRecord));
@@ -438,6 +464,7 @@ export function subscribeToFirestore(
       collection(firestore, 'settings'),
       (snap) => {
         if (isSyncSuspended) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'settings')) return;
         recordSuccessfulSync();
         snap.forEach((d) => {
           if (d.id === 'global') {
