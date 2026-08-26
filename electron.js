@@ -21,6 +21,7 @@ if (!gotTheLock) {
       minWidth: 1024,
       minHeight: 700,
       title: 'Madeireira Sol Nascente',
+      icon: path.join(__dirname, 'assets', 'icon.png'),
       autoHideMenuBar: true,
       webPreferences: {
         nodeIntegration: false,
