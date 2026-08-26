@@ -1,6 +1,7 @@
 import React from 'react';
 import { CargaRecord, ProdutoRecord, MotoristaRecord } from '../types';
 import { formatCurrency, formatNumber, formatDateBR } from '../utils/formatters';
+import { isDeductedFromBalance, sumDeductedFromBalance } from '../utils/klabinBalance';
 import { Truck, Edit2, Trash2, CheckCircle, Plus, Lock } from 'lucide-react';
 
 interface TableCargasProps {
@@ -41,9 +42,7 @@ export const TableCargas: React.FC<TableCargasProps> = ({
 
   const totalTons = filteredRecords.reduce((acc, r) => acc + (Number(r.quantityTons) || 0), 0);
   const totalValueSum = filteredRecords.reduce((acc, r) => acc + (Number(r.totalValue) || 0), 0);
-  const totalAbatido = filteredRecords
-    .filter((r) => r.deductFromBalance === 'YES' || (r.deductFromBalance as any) === true)
-    .reduce((acc, r) => acc + (Number(r.totalValue) || 0), 0);
+  const totalAbatido = sumDeductedFromBalance(filteredRecords);
 
   const isLocked = (dateStr?: string) => {
     if (!dateStr || dateStr.length < 7 || !Array.isArray(lockedMonths)) return false;
@@ -133,7 +132,7 @@ export const TableCargas: React.FC<TableCargasProps> = ({
               ) : (
                 filteredRecords.map((r) => {
                   const locked = isLocked(r.date);
-                  const isDeducted = r.deductFromBalance === 'YES' || (r.deductFromBalance as any) === true;
+                  const isDeducted = isDeductedFromBalance(r);
                   const hasFreight = r.freightPayable !== 'NO' && (r.freightPayable as any) !== false;
 
                   return (

@@ -1,6 +1,7 @@
 import React from 'react';
 import { DepositoKlabinRecord } from '../types';
 import { formatCurrency, formatDateBR } from '../utils/formatters';
+import { sumDepositos } from '../utils/klabinBalance';
 import { Building2, Plus, Edit2, Trash2, Lock } from 'lucide-react';
 
 interface TableDepositosProps {
@@ -26,7 +27,7 @@ export const TableDepositos: React.FC<TableDepositosProps> = ({
     return r.date?.toLowerCase().includes(term) || r.notes?.toLowerCase().includes(term);
   });
 
-  const totalDeposits = filtered.reduce((acc, r) => acc + (Number(r.value) || 0), 0);
+  const totalDeposits = sumDepositos(filtered);
 
   const isLocked = (dateStr?: string) => {
     if (!dateStr || dateStr.length < 7 || !Array.isArray(lockedMonths)) return false;

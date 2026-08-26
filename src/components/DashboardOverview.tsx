@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { KlabinDatabase, TableType } from '../types';
 import { formatBRL, formatNumber, formatDateBR } from '../utils/formatters';
 import { getPendingFreightTotal, getPaidFreightTotal, getTotalFreight } from '../utils/freightUtils';
+import { calcKlabinBalance } from '../utils/klabinBalance';
 import {
   Wallet,
   Truck,
@@ -36,11 +37,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
   // Calculations
   const totalVolumeTons = database.Cargas.reduce((acc, c) => acc + (Number(c.quantityTons) || 0), 0);
   const totalComprasVal = database.Cargas.reduce((acc, c) => acc + (Number(c.totalValue) || 0), 0);
-  const totalAbatido = database.Cargas
-    .filter((c) => c.deductFromBalance === 'YES' || (c.deductFromBalance as any) === true)
-    .reduce((acc, c) => acc + (Number(c.totalValue) || 0), 0);
-  const totalDepositos = database.Depositos_Klabin.reduce((acc, d) => acc + (Number(d.value) || 0), 0);
-  const saldoLiquidoKlabin = totalDepositos - totalAbatido;
+  const { totalDepositos, totalAbatido, saldo: saldoLiquidoKlabin } = calcKlabinBalance({
+    cargas: database.Cargas,
+    depositos: database.Depositos_Klabin,
+  });
 
   // Unified Fretes metrics (Cargas + Vendas com frete a pagar)
   const totalFretesPending = getPendingFreightTotal(database);

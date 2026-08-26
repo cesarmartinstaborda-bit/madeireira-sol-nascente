@@ -16,6 +16,7 @@ import {
 } from './formatters';
 import { DEFAULT_COMPANY_LOGO } from './logoAsset';
 import { getFreightRecords } from './freightUtils';
+import { calcKlabinBalance, isDeductedFromBalance } from './klabinBalance';
 
 export interface CompanyPdfData {
   name: string;
@@ -362,22 +363,13 @@ export function generateKlabinStatementPdf({
     companyInfo
   );
 
-  // 1. Calculate Totals (Exact same logic as application)
-  const totalDepositos = (depositos || []).reduce(
-    (acc, d) => acc + (Number(d.value) || 0),
-    0
-  );
+  // 1. Calculate Totals (shared with the application via calcKlabinBalance)
+  const eligibleCargas = (cargas || []).filter(isDeductedFromBalance);
 
-  const eligibleCargas = (cargas || []).filter(
-    (c) => c.deductFromBalance === 'YES' || (c.deductFromBalance as any) === true
-  );
-
-  const totalAbatido = eligibleCargas.reduce(
-    (acc, c) => acc + (Number(c.totalValue) || 0),
-    0
-  );
-
-  const saldoLivre = totalDepositos - totalAbatido;
+  const { totalDepositos, totalAbatido, saldo: saldoLivre } = calcKlabinBalance({
+    cargas: cargas || [],
+    depositos: depositos || [],
+  });
 
   // 2. Summary Box
   const summaryBoxY = headerEndY;

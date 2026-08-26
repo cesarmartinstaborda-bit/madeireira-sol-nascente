@@ -28,6 +28,7 @@ import { useKlabinDatabase } from './hooks/useKlabinDatabase';
 import { generateId } from './utils/idGenerator';
 import { normalizeIsoDate, isMonthLocked, formatMonthYearBR } from './utils/formatters';
 import { getFreightRecords, getPendingFreightTotal, getPaidFreightTotal, getTotalFreight } from './utils/freightUtils';
+import { calcKlabinBalance } from './utils/klabinBalance';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { TableMotoristas } from './components/TableMotoristas';
@@ -338,16 +339,10 @@ export default function App() {
       0
     );
 
-    const totalAbatido = database.Cargas
-      .filter((c) => c.deductFromBalance === 'YES' || (c.deductFromBalance as any) === true)
-      .reduce((acc, c) => acc + (Number(c.totalValue) || 0), 0);
-
-    const totalDepositos = database.Depositos_Klabin.reduce(
-      (acc, d) => acc + (Number(d.value) || 0),
-      0
-    );
-
-    const saldoLiquidoKlabin = totalDepositos - totalAbatido;
+    const { totalDepositos, totalAbatido, saldo: saldoLiquidoKlabin } = calcKlabinBalance({
+      cargas: database.Cargas,
+      depositos: database.Depositos_Klabin,
+    });
     const freightRatePerTon = database.appSettings?.freightRatePerTon || 15;
 
     const allFreightRecords = getFreightRecords(database);
