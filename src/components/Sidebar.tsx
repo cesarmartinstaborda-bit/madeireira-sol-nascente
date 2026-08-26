@@ -6,8 +6,8 @@ import {
   Users,
   Truck,
   Settings,
-  TreePine,
 } from 'lucide-react';
+import defaultLogo from '@/assets/icon.png';
 
 interface SidebarProps {
   activeTable: TableType;
@@ -116,9 +116,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               className="h-10 w-10 object-contain rounded-lg border border-[var(--graphite-border-base)] bg-[#1c2027]"
             />
           ) : (
-            <div className="w-10 h-10 bg-[var(--graphite-accent-blue-subtle)] text-[var(--graphite-accent-blue)] rounded-lg flex items-center justify-center border border-[var(--graphite-accent-blue)]/30 hover:bg-[var(--graphite-accent-blue-subtle)]/80 transition-all">
-              <TreePine className="w-6 h-6" />
-            </div>
+            <img
+              src={defaultLogo}
+              alt="Madeireira Sol Nascente"
+              className="h-10 w-10 object-contain rounded-lg border border-[var(--graphite-border-base)] bg-[#1c2027]"
+            />
           )}
           <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center text-[10px] text-white font-medium">
             Logo

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { TableType } from '../types';
 import { formatBRL } from '../utils/formatters';
-import { Download, Wallet, TreePine, HardDrive } from 'lucide-react';
+import { Download, Wallet, HardDrive } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { initAuth, googleSignIn, googleSignOut, getCurrentGoogleUser } from '../utils/googleAuth';
 import { GoogleSignInButton } from './GoogleSignInButton';
+import defaultLogo from '@/assets/icon.png';
 
 interface HeaderProps {
   activeTable: TableType;
@@ -122,9 +123,11 @@ export const Header: React.FC<HeaderProps> = ({
             className="h-8 w-8 object-contain rounded border border-[var(--graphite-border-subtle)] bg-[#1c2027]"
           />
         ) : (
-          <div className="w-8 h-8 rounded bg-[var(--graphite-accent-blue-subtle)] text-[var(--graphite-accent-blue)] flex items-center justify-center border border-[var(--graphite-accent-blue)]/30">
-            <TreePine className="w-4 h-4" />
-          </div>
+          <img
+            src={defaultLogo}
+            alt="Logo"
+            className="h-8 w-8 object-contain rounded border border-[var(--graphite-border-subtle)] bg-[#1c2027]"
+          />
         )}
 
         <div>
