@@ -524,9 +524,6 @@ export default function App() {
     } else if (modalTableType === 'Motoristas') {
       targetTableKey = 'Motoristas';
       firestoreCollection = 'motoristas';
-    } else if (modalTableType === 'Clientes') {
-      targetTableKey = 'Clientes';
-      firestoreCollection = 'clientes';
     }
 
     mutateDatabase((prev) => {

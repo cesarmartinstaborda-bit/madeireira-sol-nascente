@@ -111,7 +111,7 @@ interface ConfiguracoesAjustesProps {
   onUpdateCustomLogo: (logoBase64: string | undefined) => void;
   onToggleLockMonth?: (monthKey: string) => void;
   freightRatePerTon?: number;
-  onRestoreBackup?: (backupData: KlabinDatabase, backupInfo?: { filename?: string; timestamp?: string }) => void | Promise<void>;
+  onRestoreBackup?: (backupData: KlabinDatabase, backupInfo?: { filename?: string; timestamp?: string; skipConfirm?: boolean }) => void | Promise<void>;
 }
 
 export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
@@ -1532,7 +1532,7 @@ export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
               <div className="space-y-2">
                 {autoBackups.map((b, idx) => (
                   <div
-                    key={b.id || idx}
+                    key={idx}
                     className="p-3.5 bg-[#12151a] hover:bg-[#161a21] rounded-xl border border-[var(--graphite-border-subtle)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 transition-colors"
                   >
                     <div className="flex items-center space-x-3">
@@ -1544,7 +1544,7 @@ export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
                           {formatDateTimeBR(b.timestamp)}
                         </div>
                         <div className="text-[11px] text-[var(--graphite-text-secondary)] flex items-center space-x-2">
-                          <span>{b.origin || 'Backup Automático'}</span>
+                          <span>Backup Automático</span>
                           <span>•</span>
                           <span>{b.filename || `madeireira_auto_backup_${idx + 1}.json`}</span>
                         </div>

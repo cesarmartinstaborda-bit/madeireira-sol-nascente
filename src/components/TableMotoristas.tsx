@@ -334,7 +334,7 @@ export const TableMotoristas: React.FC<TableMotoristasProps> = ({
                             <tr key={`${rec.type}-${rec.id}`} className="mac-table-row">
                               <td className="py-2.5 px-3 font-medium text-slate-200 whitespace-nowrap">
                                 <div className="flex items-center space-x-1">
-                                  {locked && <Lock className="w-3 h-3 text-amber-400" title="Mês Trancado" />}
+                                  {locked && <Lock className="w-3 h-3 text-amber-400" />}
                                   <span>{formatDateBR(rec.date)}</span>
                                 </div>
                               </td>

@@ -285,8 +285,12 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
       const parsed = JSON.parse(jsonText);
       const dbPayload = parsed.database || parsed;
 
-      const validatedDb = validateAndSanitizeBackupJSON(dbPayload);
-      onRestoreDatabase(validatedDb);
+      const validation = validateAndSanitizeBackupJSON(dbPayload);
+      if (!validation.isValid || !validation.sanitizedDb) {
+        onShowToast(`Falha ao restaurar backup: ${validation.errorMessage || 'Formato de arquivo inválido.'}`);
+        return;
+      }
+      onRestoreDatabase(validation.sanitizedDb);
       onShowToast(`Banco de dados restaurado com sucesso a partir de "${restoreConfirmTarget.name}"!`);
       setRestoreConfirmTarget(null);
     } catch (err: any) {
