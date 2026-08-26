@@ -2,8 +2,6 @@ import React, { useState, useMemo } from 'react';
 import {
   TableType,
   KlabinDatabase,
-  CargaRecord,
-  DepositoKlabinRecord,
   ResumoRecord,
   CaixaRecord,
   ClientRecord,
@@ -26,6 +24,7 @@ import { useKlabinDatabase } from './hooks/useKlabinDatabase';
 import { useProdutoHandlers } from './hooks/useProdutoHandlers';
 import { useMotoristaHandlers } from './hooks/useMotoristaHandlers';
 import { useFreightHandlers } from './hooks/useFreightHandlers';
+import { useCargaDepositoHandlers } from './hooks/useCargaDepositoHandlers';
 import { generateId } from './utils/idGenerator';
 import { normalizeIsoDate, isMonthLocked, formatMonthYearBR } from './utils/formatters';
 import { getFreightRecords, getPendingFreightTotal, getPaidFreightTotal, getTotalFreight } from './utils/freightUtils';
@@ -64,7 +63,6 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [recordToEdit, setRecordToEdit] = useState<any | null>(null);
-  const [confirmDeleteTarget, setConfirmDeleteTarget] = useState<{ id: string; table: string } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Locked months synchronized via database.appSettings.cycles.lockedMonths
@@ -95,30 +93,6 @@ export default function App() {
     return isMonthLocked(dateStr, lockedMonths);
   };
 
-  // Real-time inline update handlers for Data Grids
-  const handleUpdateCargaRecord = (updatedCarga: CargaRecord) => {
-    if (isDateLocked(updatedCarga.date)) {
-      showToast('Operação bloqueada: o mês deste lançamento está trancado no Fechamento de Ciclo.');
-      return;
-    }
-    mutateDatabase((prev) => ({
-      ...prev,
-      Cargas: prev.Cargas.map((c) => (c.id === updatedCarga.id ? updatedCarga : c)),
-    }));
-    upsertFirestoreRecord('cargas', updatedCarga);
-  };
-
-  const handleUpdateDepositoRecord = (updatedDeposito: DepositoKlabinRecord) => {
-    if (isDateLocked(updatedDeposito.date)) {
-      showToast('Operação bloqueada: o mês deste depósito está trancado no Fechamento de Ciclo.');
-      return;
-    }
-    mutateDatabase((prev) => ({
-      ...prev,
-      Depositos_Klabin: prev.Depositos_Klabin.map((d) => (d.id === updatedDeposito.id ? updatedDeposito : d)),
-    }));
-    upsertFirestoreRecord('depositos', updatedDeposito);
-  };
 
   // CLIENT & VENDA HANDLERS
   const handleAddClient = (clientData: Partial<ClientRecord>) => {
@@ -442,47 +416,21 @@ export default function App() {
     return true;
   };
 
-  // Delete Handlers with Firestore sync
-  const handleDeleteCarga = (id: string) => {
-    const item = database.Cargas.find((c) => c.id === id);
-    if (item && item.date && isDateLocked(item.date)) {
-      showToast('Operação bloqueada: o registro pertence a um mês trancado no Fechamento de Ciclo.');
-      return;
-    }
-    setConfirmDeleteTarget({ id, table: 'Cargas' });
-  };
-
-  const handleDeleteDeposito = (id: string) => {
-    const item = database.Depositos_Klabin.find((d) => d.id === id);
-    if (item && item.date && isDateLocked(item.date)) {
-      showToast('Operação bloqueada: o registro pertence a um mês trancado no Fechamento de Ciclo.');
-      return;
-    }
-    setConfirmDeleteTarget({ id, table: 'Depositos_Klabin' });
-  };
-
-  const handleConfirmDelete = () => {
-    if (!confirmDeleteTarget) return;
-    const { id, table } = confirmDeleteTarget;
-
-    if (table === 'Cargas') {
-      mutateDatabase((prev) => ({
-        ...prev,
-        Cargas: prev.Cargas.filter((c) => c.id !== id),
-      }));
-      deleteFirestoreRecord('cargas', id);
-      showToast('Carga excluída com sucesso.');
-    } else if (table === 'Depositos_Klabin') {
-      mutateDatabase((prev) => ({
-        ...prev,
-        Depositos_Klabin: prev.Depositos_Klabin.filter((d) => d.id !== id),
-      }));
-      deleteFirestoreRecord('depositos', id);
-      showToast('Depósito excluído com sucesso.');
-    }
-
-    setConfirmDeleteTarget(null);
-  };
+  // CARGAS & DEPOSITOS HANDLERS
+  const {
+    handleUpdateCargaRecord,
+    handleUpdateDepositoRecord,
+    handleDeleteCarga,
+    handleDeleteDeposito,
+    handleConfirmDelete,
+    confirmDeleteTarget,
+    cancelDelete,
+  } = useCargaDepositoHandlers({
+    database,
+    mutateDatabase,
+    showToast,
+    isDateLocked,
+  });
 
   // MOTORISTAS HANDLERS
   const { handleAddMotorista, handleUpdateMotorista, handleDeleteDriver } = useMotoristaHandlers({
@@ -899,7 +847,7 @@ export default function App() {
             ? 'Tem certeza de que deseja remover este depósito da Klabin? Esta ação não poderá ser desfeita e será sincronizada.'
             : 'Tem certeza de que deseja remover este registro de carga da base de dados? Esta ação não poderá ser desfeita e será sincronizada.'
         }
-        onClose={() => setConfirmDeleteTarget(null)}
+        onClose={cancelDelete}
         onConfirm={handleConfirmDelete}
       />
 

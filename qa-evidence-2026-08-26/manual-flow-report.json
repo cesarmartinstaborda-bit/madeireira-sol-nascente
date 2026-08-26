@@ -1,0 +1,174 @@
+{
+  "steps": [
+    {
+      "name": "Dashboard inicial",
+      "ok": true,
+      "detail": "SALDO LIVRE KLABIN\nR$ 8.430,00"
+    },
+    {
+      "name": "Criar carga",
+      "ok": true,
+      "detail": "10 ton x R$ 200,00; total R$ 2.000,00"
+    },
+    {
+      "name": "Editar carga",
+      "ok": true,
+      "detail": "Quantidade alterada para 12 ton; total R$ 2.400,00"
+    },
+    {
+      "name": "Criar depósito",
+      "ok": true,
+      "detail": "R$ 1.234,56"
+    },
+    {
+      "name": "Editar depósito",
+      "ok": true,
+      "detail": "Observação atualizada"
+    },
+    {
+      "name": "Conferir saldo",
+      "ok": true,
+      "detail": "SALDO LIVRE KLABIN\nR$ 7.264,56; cálculo: 8.430,00 + 1.234,56 - 2.400,00 = 7.264,56"
+    },
+    {
+      "name": "Excluir carga com confirmação",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "Excluir depósito com confirmação",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "name": "CRUD produto",
+      "ok": true,
+      "detail": "Exclusão direta, conforme implementação atual; sem modal de confirmação"
+    },
+    {
+      "name": "CRUD motorista",
+      "ok": true,
+      "detail": "Exclusão direta, conforme implementação atual; sem modal de confirmação"
+    },
+    {
+      "name": "Quitar e reverter frete",
+      "ok": true,
+      "detail": "João Silva / ABC-1234\n(42) 99911-2233\nPENDENTE\nR$ 637,50\nGerar PDF\nQuitar Fretes Pendentes\nDATA\tTIPO\tPRODUTO\tQTD (TON)\tCUSTO FRETE\tSTATUS PAGAMENTO\tAÇÃO\n\n26/08/2026\n\tCARGA\tEucalipto Torora\t42,50\tR$ 637,50\tPENDENTE\tAlternar Status"
+    },
+    {
+      "name": "Falha fatal no roteiro",
+      "ok": false,
+      "detail": "locator.waitFor: Timeout 120000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByText('Backup restaurado com sucesso.') to be visible\u001b[22m\n\n    at /tmp/msn-e2e/flows.mjs:176:58"
+    }
+  ],
+  "console": [
+    {
+      "type": "debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connected."
+    },
+    {
+      "type": "info",
+      "text": "%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:37.509Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:37.867Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:39.137Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:41.357Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:44.300Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:44.308Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:44.627Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:45.199Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:47.258Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:48.159Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:49.789Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:50.898Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:51.948Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:31:59.138Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:32:00.539Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:32:04.910Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:32:12.289Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:32:13.738Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:32:25.847Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:32:39.418Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:32:41.528Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:33:03.359Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    },
+    {
+      "type": "warning",
+      "text": "[2026-08-26T05:33:09.818Z]  @firebase/firestore: Firestore (12.18.0): Database '(default)' not found. Please check your project configuration."
+    }
+  ],
+  "pageErrors": [],
+  "downloads": [
+    "/home/cesar/projetos/gestao-klabin/qa-evidence-2026-08-26/Madeireira_Backup_2026-08-26_0231.json"
+  ]
+}
