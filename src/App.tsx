@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   TableType,
   KlabinDatabase,
@@ -13,21 +13,18 @@ import {
   AppSettings,
 } from './types';
 import {
-  loadDatabase,
   saveDatabase,
   exportTableCSV,
   validateAndSanitizeBackupJSON,
-  sanitizeDatabase,
   createAutoBackup,
 } from './utils/storage';
 import {
-  subscribeToFirestore,
   deleteFirestoreRecord,
   upsertFirestoreRecord,
   syncFirestoreSettings,
-  checkAndSeedFirestoreIfEmpty,
   restoreFirestoreAuthoritatively,
 } from './utils/firebaseSync';
+import { useKlabinDatabase } from './hooks/useKlabinDatabase';
 import { generateId } from './utils/idGenerator';
 import { normalizeIsoDate, isMonthLocked, formatMonthYearBR } from './utils/formatters';
 import { getFreightRecords, getPendingFreightTotal, getPaidFreightTotal, getTotalFreight } from './utils/freightUtils';
@@ -44,7 +41,7 @@ import { RecordModal } from './components/RecordModal';
 import { ConfirmModal } from './components/ConfirmModal';
 
 export default function App() {
-  const [database, setDatabase] = useState<KlabinDatabase>(() => loadDatabase());
+  const { database, setDatabase, mutateDatabase } = useKlabinDatabase();
   const [activeTable, setActiveTable] = useState<TableType>(() => {
     try {
       const pref = localStorage.getItem('app_startup_preference');
@@ -95,48 +92,6 @@ export default function App() {
   const isDateLocked = (dateStr?: string): boolean => {
     return isMonthLocked(dateStr, lockedMonths);
   };
-
-  // Persist locally whenever state changes (without triggering auto-backup on mount/reload/snapshots)
-  useEffect(() => {
-    saveDatabase(database, { createBackup: false });
-  }, [database]);
-
-  // Helper for applying user mutations with immediate auto-backup trigger
-  const mutateDatabase = (updater: (prev: KlabinDatabase) => KlabinDatabase) => {
-    setDatabase((prev) => {
-      const next = sanitizeDatabase(updater(prev));
-      saveDatabase(next, { createBackup: true });
-      return next;
-    });
-  };
-
-  // Real-time Firestore sync with authoritative collections
-  useEffect(() => {
-    checkAndSeedFirestoreIfEmpty(database).catch((err) => {
-      console.warn('[Firestore] Inicialização:', err);
-    });
-
-    const unsubscribe = subscribeToFirestore((collectionKey, data) => {
-      setDatabase((prev) => {
-        if (collectionKey === 'Settings') {
-          const updated = {
-            ...prev,
-            appSettings: data.appSettings !== undefined ? data.appSettings : prev.appSettings,
-            customLogo: data.customLogo !== undefined ? data.customLogo : prev.customLogo,
-          };
-          return sanitizeDatabase(updated);
-        }
-
-        const updated = {
-          ...prev,
-          [collectionKey]: data,
-        };
-        return sanitizeDatabase(updated);
-      });
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   // Real-time inline update handlers for Data Grids
   const handleUpdateCargaRecord = (updatedCarga: CargaRecord) => {
