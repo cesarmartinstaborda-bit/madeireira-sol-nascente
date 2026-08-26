@@ -8,7 +8,6 @@ import {
   CaixaRecord,
   ClientRecord,
   VendaRecord,
-  ProdutoRecord,
   MotoristaRecord,
   AppSettings,
 } from './types';
@@ -25,6 +24,7 @@ import {
   restoreFirestoreAuthoritatively,
 } from './utils/firebaseSync';
 import { useKlabinDatabase } from './hooks/useKlabinDatabase';
+import { useProdutoHandlers } from './hooks/useProdutoHandlers';
 import { generateId } from './utils/idGenerator';
 import { normalizeIsoDate, isMonthLocked, formatMonthYearBR } from './utils/formatters';
 import { getFreightRecords, getPendingFreightTotal, getPaidFreightTotal, getTotalFreight } from './utils/freightUtils';
@@ -256,76 +256,18 @@ export default function App() {
     showToast('Status de quitação da venda alterado.');
   };
 
-  // PRODUTOS HANDLERS
-  const handleAddProduto = (prodData: Partial<ProdutoRecord>) => {
-    const name = (prodData.name || '').trim();
-    if (!name) {
-      showToast('Erro de validação: Nome do produto é obrigatório.');
-      return;
-    }
-    const newProd: ProdutoRecord = {
-      id: generateId('p'),
-      name,
-      unitOfMeasure: prodData.unitOfMeasure || 'ton',
-      referencePrice: Number(prodData.referencePrice) || 250,
-      status: prodData.status || 'ACTIVE',
-      createdAt: new Date().toISOString(),
-    };
-    mutateDatabase((prev) => ({
-      ...prev,
-      Produtos: [...(prev.Produtos || []), newProd],
-    }));
-    upsertFirestoreRecord('produtos', newProd);
-    showToast(`Produto ${newProd.name} cadastrado com sucesso.`);
-  };
-
-  const handleUpdateProduto = (updatedProd: ProdutoRecord) => {
-    mutateDatabase((prev) => ({
-      ...prev,
-      Produtos: (prev.Produtos || []).map((p) => (p.id === updatedProd.id ? updatedProd : p)),
-    }));
-    upsertFirestoreRecord('produtos', updatedProd);
-    showToast(`Produto ${updatedProd.name} atualizado.`);
-  };
-
-  const handleDeleteProduto = (prodId: string) => {
-    const targetProd = (database.Produtos || []).find((p) => p.id === prodId);
-    if (!targetProd) return;
-
-    const prodNameLower = targetProd.name.trim().toLowerCase();
-    const hasCargas = (database.Cargas || []).some(
-      (c) => c.productId === prodId || (c.product && c.product.trim().toLowerCase() === prodNameLower)
-    );
-    const hasVendas = (database.Vendas || []).some(
-      (v) => v.productId === prodId || (v.product && v.product.trim().toLowerCase() === prodNameLower)
-    );
-
-    if (hasCargas || hasVendas) {
-      const inactivated: ProdutoRecord = {
-        ...targetProd,
-        status: 'INACTIVE',
-      };
-      mutateDatabase((prev) => ({
-        ...prev,
-        Produtos: (prev.Produtos || []).map((p) => (p.id === prodId ? inactivated : p)),
-      }));
-      upsertFirestoreRecord('produtos', inactivated);
-      showToast(`Produto ${targetProd.name} possui histórico e foi desativado (INATIVO) para preservar os registros.`);
-    } else {
-      mutateDatabase((prev) => ({
-        ...prev,
-        Produtos: (prev.Produtos || []).filter((p) => p.id !== prodId),
-      }));
-      deleteFirestoreRecord('produtos', prodId);
-      showToast(`Produto ${targetProd.name} removido do catálogo.`);
-    }
-  };
-
   // Show transient notification toast
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // PRODUTOS HANDLERS
+  const { handleAddProduto, handleUpdateProduto, handleDeleteProduto } = useProdutoHandlers({
+    database,
+    mutateDatabase,
+    showToast,
+  });
 
   // DYNAMIC COMPUTED METRICS
   const computedMetrics = useMemo(() => {
