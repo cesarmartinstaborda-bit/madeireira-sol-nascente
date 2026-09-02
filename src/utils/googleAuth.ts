@@ -2,7 +2,7 @@ import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   Auth,
-  signInWithPopup,
+  signInWithCredential,
   GoogleAuthProvider,
   onAuthStateChanged,
   User,
@@ -66,6 +66,50 @@ let isSigningIn = false;
 // Cache the access token in memory ONLY (never in localStorage/sessionStorage)
 let cachedAccessToken: string | null = null;
 let cachedUser: User | null = null;
+// Guards the one-shot silent session restore per app run
+let restorePromise: Promise<void> | null = null;
+
+/**
+ * Silently restores a previously persisted Google Drive session (desktop only).
+ * The refresh_token lives encrypted in the Electron main process; here we just
+ * ask it for a fresh access_token and re-hydrate Firebase auth so every
+ * component subscribed via initAuth() sees the user as connected — no
+ * interactive login. Safe to call multiple times: it runs at most once.
+ */
+export const restoreGoogleSession = (): Promise<void> => {
+  if (restorePromise) return restorePromise;
+
+  if (typeof window === 'undefined' || !window.electron?.googleRestoreSession) {
+    restorePromise = Promise.resolve();
+    return restorePromise;
+  }
+
+  // Set synchronously so initAuth()'s onAuthStateChanged listener does not fire
+  // a premature onAuthFailure() while the async restore is still in flight.
+  isSigningIn = true;
+
+  restorePromise = (async () => {
+    try {
+      const auth = getFirebaseAuth();
+      if (!auth || cachedAccessToken) return;
+
+      const session = await window.electron!.googleRestoreSession();
+      if (!session?.accessToken) return;
+
+      cachedAccessToken = session.accessToken;
+      const credential = GoogleAuthProvider.credential(session.idToken ?? null, session.accessToken);
+      const result = await signInWithCredential(auth, credential);
+      cachedUser = result.user;
+    } catch (err) {
+      cachedAccessToken = null;
+      console.warn('[GoogleAuth] Falha ao restaurar sessão persistente do Google Drive:', err);
+    } finally {
+      isSigningIn = false;
+    }
+  })();
+
+  return restorePromise;
+};
 
 // Initialize auth state listener
 export const initAuth = (
@@ -78,6 +122,11 @@ export const initAuth = (
       if (onAuthFailure) onAuthFailure();
       return () => {};
     }
+
+    // Kick off the one-shot silent reconnect (persistent login). When it
+    // succeeds, signInWithCredential re-triggers the listener below with
+    // cachedAccessToken populated, so onAuthSuccess fires normally.
+    void restoreGoogleSession();
 
     return onAuthStateChanged(auth, async (user: User | null) => {
       cachedUser = user;
@@ -105,28 +154,31 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
   if (!auth) {
     throw new Error('Serviço de autenticação não disponível ou não configurado');
   }
+  if (!window.electron?.googleSignIn) {
+    throw new Error('Login com Google Drive só está disponível no aplicativo desktop.');
+  }
 
   try {
     isSigningIn = true;
-    const provider = getGoogleAuthProvider();
-    const result = await signInWithPopup(auth, provider);
-    const credential = GoogleAuthProvider.credentialFromResult(result);
-    if (!credential?.accessToken) {
-      throw new Error('Falha ao obter token de acesso Google Drive');
-    }
+    const { idToken, accessToken } = await window.electron.googleSignIn();
 
-    cachedAccessToken = credential.accessToken;
+    // Set before awaiting signInWithCredential: that call is what triggers Firebase's
+    // onAuthStateChanged internally, and components subscribed via initAuth() (e.g.
+    // GoogleDriveExplorer.tsx, independently of Header.tsx) read cachedAccessToken
+    // synchronously inside that callback. Assigning it after the await left a race
+    // where the listener could fire while cachedAccessToken was still null, silently
+    // skipping both onAuthSuccess and onAuthFailure and leaving that component stuck
+    // signed-out forever.
+    cachedAccessToken = accessToken;
+    const credential = GoogleAuthProvider.credential(idToken, accessToken);
+    const result = await signInWithCredential(auth, credential);
+
     cachedUser = result.user;
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
-    // Gracefully handle normal user actions like closing the popup window
-    if (
-      error?.code === 'auth/popup-closed-by-user' ||
-      error?.code === 'auth/cancelled-popup-request' ||
-      error?.code === 'auth/user-cancelled' ||
-      error?.message?.includes('popup-closed-by-user') ||
-      error?.message?.includes('cancelled-popup-request')
-    ) {
+    cachedAccessToken = null;
+    // Gracefully handle normal user actions like closing the browser tab or denying consent
+    if (error?.message?.includes('cancelado') || error?.message?.includes('Tempo esgotado')) {
       return null;
     }
     console.error('[GoogleAuth] Erro no login:', error);
@@ -151,6 +203,13 @@ export const getCurrentGoogleUser = (): User | null => {
 };
 
 export const googleSignOut = async (): Promise<void> => {
+  // Manual logout only: drop the persisted refresh_token so the app stops
+  // auto-reconnecting on the next launch.
+  try {
+    await window.electron?.googleClearSession?.();
+  } catch (e) {
+    console.warn('[GoogleAuth] Erro ao limpar sessão persistente:', e);
+  }
   try {
     const auth = getFirebaseAuth();
     if (auth) {
@@ -161,5 +220,6 @@ export const googleSignOut = async (): Promise<void> => {
   } finally {
     cachedAccessToken = null;
     cachedUser = null;
+    restorePromise = null;
   }
 };

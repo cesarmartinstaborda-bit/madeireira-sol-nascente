@@ -4,6 +4,56 @@ export function formatCurrency(value: number | undefined | null): string {
   return formatBRL(value);
 }
 
+/**
+ * Converts user-entered Brazilian currency to a plain number.
+ * Brazilian input uses dots for thousands and a comma for decimals. A lone
+ * dot is accepted as a decimal separator only when it is not valid thousands
+ * grouping, which also keeps compatibility with numeric values stringified by
+ * older versions of the application.
+ */
+export function parseBRLCurrency(value: string | number | null | undefined): number {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : NaN;
+  if (value === null || value === undefined) return NaN;
+
+  const normalized = String(value)
+    .trim()
+    .replace(/R\$/gi, '')
+    .replace(/\s/g, '');
+
+  if (!normalized) return NaN;
+
+  const sign = normalized.startsWith('-') ? '-' : '';
+  const unsigned = normalized.replace(/^[+-]/, '');
+  if (!/^\d[\d.,]*$/.test(unsigned)) return NaN;
+
+  let numericText: string;
+  if (unsigned.includes(',')) {
+    if ((unsigned.match(/,/g) || []).length !== 1) return NaN;
+    const [integerPart, decimalPart] = unsigned.split(',');
+    if (decimalPart.length > 2 || !/^\d*$/.test(decimalPart)) return NaN;
+    if (integerPart.includes('.') && !/^\d{1,3}(\.\d{3})+$/.test(integerPart)) return NaN;
+    numericText = `${integerPart.replace(/\./g, '')}.${decimalPart || '0'}`;
+  } else if (/^\d{1,3}(\.\d{3})+$/.test(unsigned)) {
+    numericText = unsigned.replace(/\./g, '');
+  } else {
+    if ((unsigned.match(/\./g) || []).length > 1) return NaN;
+    numericText = unsigned;
+  }
+
+  const parsed = Number(`${sign}${numericText}`);
+  return Number.isFinite(parsed) ? parsed : NaN;
+}
+
+/** Formats a stored numeric value for editing in a pt-BR currency input. */
+export function formatBRLCurrencyInput(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(Number(value))) return '';
+  return new Intl.NumberFormat('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    useGrouping: true,
+  }).format(Number(value));
+}
+
 export const formatDateBR = formatDate;
 
 export function formatBRL(value: number | undefined | null): string {

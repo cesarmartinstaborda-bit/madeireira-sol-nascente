@@ -3,6 +3,7 @@ import { CargaRecord, ProdutoRecord, MotoristaRecord } from '../types';
 import { formatCurrency, formatNumber, formatDateBR } from '../utils/formatters';
 import { isDeductedFromBalance, sumDeductedFromBalance } from '../utils/klabinBalance';
 import { Truck, Edit2, Trash2, CheckCircle, Plus, Lock } from 'lucide-react';
+import { sortByDateDescending } from '../utils/dateSorting';
 
 interface TableCargasProps {
   records: CargaRecord[];
@@ -27,7 +28,7 @@ export const TableCargas: React.FC<TableCargasProps> = ({
   lockedMonths = [],
   freightRatePerTon = 15,
 }) => {
-  const filteredRecords = records.filter((r) => {
+  const filteredRecords = sortByDateDescending(records.filter((r) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -38,7 +39,7 @@ export const TableCargas: React.FC<TableCargasProps> = ({
       r.driverPlate?.toLowerCase().includes(term) ||
       r.notes?.toLowerCase().includes(term)
     );
-  });
+  }), (record) => record.date);
 
   const totalTons = filteredRecords.reduce((acc, r) => acc + (Number(r.quantityTons) || 0), 0);
   const totalValueSum = filteredRecords.reduce((acc, r) => acc + (Number(r.totalValue) || 0), 0);

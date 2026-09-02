@@ -20,6 +20,7 @@ import {
   ProdutoRecord,
   MotoristaRecord,
 } from '../types';
+import { sortByDateDescending } from './dateSorting';
 import firebaseConfigJson from '../../firebase-applet-config.json';
 
 // Read Firebase configuration directly from config json with fallback to Vite environment
@@ -378,7 +379,10 @@ export function subscribeToFirestore(
         recordSuccessfulSync();
         const list: CargaRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as CargaRecord));
-        onCollectionUpdate('Cargas', list);
+        // Firestore devolve os documentos em ordem de id (uuid), não de data, e
+        // essa ordem é o que fica salvo no localStorage. Ordenar já na entrada
+        // faz qualquer tela ou PDF herdar a ordem certa, mesmo sem ordenar de novo.
+        onCollectionUpdate('Cargas', sortByDateDescending(list, (c) => c.date));
       },
       (err) => console.error('[Firestore Error] snapshot cargas:', err)
     );
@@ -393,7 +397,7 @@ export function subscribeToFirestore(
         recordSuccessfulSync();
         const list: DepositoKlabinRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as DepositoKlabinRecord));
-        onCollectionUpdate('Depositos_Klabin', list);
+        onCollectionUpdate('Depositos_Klabin', sortByDateDescending(list, (d) => d.date));
       },
       (err) => console.error('[Firestore Error] snapshot depositos:', err)
     );
@@ -423,7 +427,7 @@ export function subscribeToFirestore(
         recordSuccessfulSync();
         const list: VendaRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as VendaRecord));
-        onCollectionUpdate('Vendas', list);
+        onCollectionUpdate('Vendas', sortByDateDescending(list, (v) => v.date));
       },
       (err) => console.error('[Firestore Error] snapshot vendas:', err)
     );

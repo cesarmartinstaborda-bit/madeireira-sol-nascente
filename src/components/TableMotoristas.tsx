@@ -225,9 +225,13 @@ export const TableMotoristas: React.FC<TableMotoristasProps> = ({
             </div>
           ) : (
             freightGroups.map((group) => {
-              const driverIdentifier = group.driverId || group.driverKey;
+              // Prefer the id of a driver that is actually in the cadastro. A
+              // record can still carry the id of a deleted Motorista, and paying
+              // by that orphan id would skip the group's other records; the
+              // driverKey text matches all of them.
+              const driverIdentifier = group.motoristaObj?.id || group.driverKey;
               return (
-                <div key={group.driverKey} className="glass-card-static overflow-hidden">
+                <div key={group.groupKey} className="glass-card-static overflow-hidden">
                   {/* Driver Header */}
                   <div className="p-4 bg-[var(--graphite-surface-2)] border-b border-[var(--graphite-border-subtle)] flex flex-col md:flex-row md:items-center justify-between gap-3">
                     <div>

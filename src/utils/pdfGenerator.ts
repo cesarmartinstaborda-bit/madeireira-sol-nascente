@@ -14,9 +14,21 @@ import {
   formatCNPJ,
   formatLicensePlate,
 } from './formatters';
-import { DEFAULT_COMPANY_LOGO } from './logoAsset';
+import {
+  COMPANY_PDF_LOGO,
+  PDF_BRAND,
+  PDF_LAYOUT,
+  drawFittedText,
+  getBrandTableStyles,
+  getPdfFontFamily,
+  renderBrandFooter,
+  renderBrandHeader,
+  registerPdfFonts,
+} from './pdfVisualStyle';
+import { sortByDateDescending } from './dateSorting';
 import { getFreightRecords } from './freightUtils';
 import { calcKlabinBalance, isDeductedFromBalance } from './klabinBalance';
+import { autoUploadPdfToDrive } from './googleDrive';
 
 export interface CompanyPdfData {
   name: string;
@@ -45,7 +57,8 @@ export function extractCompanyInfo(
     cnpj: company?.cnpj?.trim() || undefined,
     city: company?.city?.trim() || undefined,
     state: company?.state?.trim() || undefined,
-    logo: customLogo || DEFAULT_COMPANY_LOGO,
+    // All reports intentionally use the official bundled brand artwork.
+    logo: COMPANY_PDF_LOGO,
   };
 }
 
@@ -80,11 +93,16 @@ export function sanitizePdfFilename(name: string): string {
  * Creates standard A4 portrait jsPDF document.
  */
 export function createBasePdfDocument(): jsPDF {
-  return new jsPDF({
+  const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     format: 'a4',
+    // Without this the embedded TrueType faces are written uncompressed and
+    // every report ships as a multi-megabyte file.
+    compress: true,
   });
+  registerPdfFonts(doc);
+  return doc;
 }
 
 /**
@@ -98,115 +116,37 @@ export function renderStandardHeader(
   company: CompanyPdfData,
   detailsBox?: { label: string; value: string }[]
 ): number {
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const startY = 12;
-  let textStartX = 14;
-
-  // 1. Logo
-  let hasLogo = false;
-  if (company.logo && company.logo.startsWith('data:image')) {
-    try {
-      doc.addImage(company.logo, 'JPEG', 14, startY, 22, 22);
-      textStartX = 40;
-      hasLogo = true;
-    } catch {
-      hasLogo = false;
-      textStartX = 14;
-    }
-  }
-
-  // 2. Company Info (Left Header)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.setTextColor('#1B4332'); // Brand primary dark green
-  doc.text(company.name, textStartX, startY + (hasLogo ? 5.5 : 4));
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  doc.setTextColor('#475569');
-
-  let currentY = startY + (hasLogo ? 10.5 : 8.5);
-  if (company.cnpj) {
-    doc.text(`CNPJ: ${formatCNPJ(company.cnpj)}`, textStartX, currentY);
-    currentY += 4.5;
-  }
-
-  const locationParts = [company.city, company.state].filter(Boolean);
-  if (locationParts.length > 0) {
-    doc.text(locationParts.join(' - '), textStartX, currentY);
-    currentY += 4.5;
-  }
-
-  // 3. Document Title & Emission Date (Right Header)
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor('#0F172A');
-  doc.text(title, pageWidth - 14, startY + 5.5, { align: 'right' });
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8);
-  doc.setTextColor('#64748B');
-  doc.text(getPdfEmissionDate(), pageWidth - 14, startY + 11, { align: 'right' });
-
-  // Divider line
-  const headerBottomY = Math.max(hasLogo ? startY + 24 : currentY + 2, startY + 17);
-  doc.setDrawColor('#CBD5E1');
-  doc.setLineWidth(0.35);
-  doc.line(14, headerBottomY, pageWidth - 14, headerBottomY);
-
-  let nextSectionY = headerBottomY + 5;
-
-  // 4. Identification Details Box (e.g. Cliente: [nome] or Motorista: [nome] / Placa: [placa])
-  if (detailsBox && detailsBox.length > 0) {
-    const boxHeight = detailsBox.length > 1 ? 13 : 9;
-    doc.setFillColor('#F8FAFC');
-    doc.setDrawColor('#E2E8F0');
-    doc.roundedRect(14, nextSectionY, pageWidth - 28, boxHeight, 1.5, 1.5, 'FD');
-
-    detailsBox.forEach((item, idx) => {
-      const lineY = nextSectionY + (detailsBox.length > 1 ? (idx === 0 ? 5 : 10) : 6);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.setTextColor('#475569');
-      doc.text(`${item.label}: `, 18, lineY);
-
-      const labelWidth = doc.getTextWidth(`${item.label}: `);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor('#0F172A');
-      doc.text(item.value, 18 + labelWidth, lineY);
-    });
-
-    nextSectionY += boxHeight + 4;
-  }
-
-  return nextSectionY;
+  return renderBrandHeader(
+    doc,
+    title,
+    { ...company, cnpj: company.cnpj ? formatCNPJ(company.cnpj) : undefined },
+    getPdfEmissionDate(),
+    detailsBox
+  );
 }
 
 /**
  * Standard finalization: renders page numbers and discrete footer on all pages,
- * then triggers browser download of the PDF.
+ * then triggers browser download of the PDF. After the local download, the same
+ * PDF is mirrored to the dedicated Google Drive folder as a best-effort,
+ * fire-and-forget step — it never blocks or breaks generation, and is silently
+ * skipped (with a discreet UI notice) when no Drive session is active.
  */
 export function finalizePdfAndDownload(
   doc: jsPDF,
   filename: string,
   companyName: string
 ) {
-  const pageCount = (doc.internal as any).getNumberOfPages();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const pageWidth = doc.internal.pageSize.getWidth();
-
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(7.5);
-    doc.setTextColor('#94A3B8');
-    doc.text(companyName, 14, pageHeight - 7);
-    doc.text(`Página ${i} de ${pageCount}`, pageWidth - 14, pageHeight - 7, {
-      align: 'right',
-    });
-  }
+  renderBrandFooter(doc, companyName);
 
   doc.save(filename);
+
+  try {
+    const blob = doc.output('blob');
+    void autoUploadPdfToDrive(blob, filename);
+  } catch {
+    // Extracting the blob must never affect the download that just succeeded.
+  }
 }
 
 // ============================================================================
@@ -242,6 +182,14 @@ export function generateClientPendingPdf({
     return false; // Indicating no pending sales found
   }
 
+  // Newest first, matching every dated listing on screen. The caller hands us
+  // the raw `vendas` array, so the PDF has to order it itself.
+  const orderedVendas = sortByDateDescending(
+    clientPendingVendas,
+    (venda) => venda.date,
+    (venda) => venda.createdAt
+  );
+
   const companyInfo = extractCompanyInfo(appSettings, customLogo);
   const doc = createBasePdfDocument();
 
@@ -252,7 +200,7 @@ export function generateClientPendingPdf({
     [{ label: 'Cliente', value: clientName }]
   );
 
-  const totalAmount = clientPendingVendas.reduce(
+  const totalAmount = orderedVendas.reduce(
     (acc, v) => acc + (Number(v.totalValue) || 0),
     0
   );
@@ -262,7 +210,7 @@ export function generateClientPendingPdf({
     ['Data', 'Produto', 'Quantidade', 'Preço Unitário', 'Valor Total'],
   ];
 
-  const tableBody = clientPendingVendas.map((v) => {
+  const tableBody = orderedVendas.map((v) => {
     const qtdFormatted = `${formatNumber(v.quantity, 2)} ${v.unitOfMeasure || 'ton'}`;
     return [
       formatDate(v.date),
@@ -282,35 +230,16 @@ export function generateClientPendingPdf({
     head: tableHead,
     body: tableBody,
     foot: tableFoot,
-    theme: 'grid',
-    styles: {
-      font: 'helvetica',
-      fontSize: 8.5,
-      cellPadding: 2.5,
-      textColor: '#0F172A',
-      lineColor: '#CBD5E1',
-      lineWidth: 0.15,
-    },
-    headStyles: {
-      fillColor: '#1B4332',
-      textColor: '#FFFFFF',
-      fontStyle: 'bold',
-      halign: 'left',
-    },
-    footStyles: {
-      fillColor: '#F8FAFC',
-      textColor: '#0F172A',
-      fontStyle: 'bold',
-      fontSize: 9,
-      lineColor: '#94A3B8',
-      lineWidth: 0.25,
-    },
+    ...getBrandTableStyles(doc, 9.5),
     columnStyles: {
-      0: { halign: 'center', cellWidth: 26 }, // Data
+      // The four numeric columns are pinned tightly so "Produto" keeps roughly
+      // 62mm instead of the ~45mm that forced product names to wrap.
+      0: { halign: 'left', cellWidth: 24 },   // Data
       1: { halign: 'left' },                  // Produto
-      2: { halign: 'right', cellWidth: 32 },  // Quantidade
-      3: { halign: 'right', cellWidth: 32 },  // Preço Unitário
-      4: { halign: 'right', cellWidth: 36 },  // Valor Total
+      2: { halign: 'right', cellWidth: 27 },  // Quantidade
+      3: { halign: 'right', cellWidth: 27 },  // Preço Unitário
+      // Wide enough for the bold grand total in the footer, not just the rows.
+      4: { halign: 'right', cellWidth: 38 },  // Valor Total
     },
     didParseCell: (data) => {
       if (data.section === 'foot') {
@@ -322,11 +251,10 @@ export function generateClientPendingPdf({
         if (data.column.index === 4) {
           data.cell.styles.halign = 'right';
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.textColor = '#B45309'; // Amber highlight
+          data.cell.styles.textColor = PDF_BRAND.orangeDark;
         }
       }
     },
-    margin: { left: 14, right: 14 },
   });
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -372,45 +300,65 @@ export function generateKlabinStatementPdf({
   });
 
   // 2. Summary Box
+  const family = getPdfFontFamily(doc);
   const summaryBoxY = headerEndY;
-  const summaryBoxWidth = pageWidth - 28;
-  const summaryBoxHeight = 17;
+  const summaryLeft = PDF_LAYOUT.margin;
+  const summaryBoxWidth = pageWidth - PDF_LAYOUT.margin * 2;
+  const summaryBoxHeight = 20;
 
-  doc.setFillColor('#F8FAFC');
-  doc.setDrawColor('#CBD5E1');
-  doc.roundedRect(14, summaryBoxY, summaryBoxWidth, summaryBoxHeight, 1.5, 1.5, 'FD');
+  doc.setFillColor(PDF_BRAND.light);
+  doc.setDrawColor(PDF_BRAND.line);
+  doc.roundedRect(summaryLeft, summaryBoxY, summaryBoxWidth, summaryBoxHeight, 1.5, 1.5, 'FD');
 
   const colWidth = summaryBoxWidth / 3;
+  const colPadding = 6;
+  const colTextWidth = colWidth - colPadding * 2;
 
-  // Col 1: Total Depositado
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor('#64748B');
-  doc.text('TOTAL DEPOSITADO', 14 + 6, summaryBoxY + 5.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor('#047857'); // Emerald green
-  doc.text(formatBRL(totalDepositos), 14 + 6, summaryBoxY + 12);
+  const summaryColumns = [
+    {
+      label: 'TOTAL DEPOSITADO',
+      value: formatBRL(totalDepositos),
+      labelColor: PDF_BRAND.muted,
+      valueColor: PDF_BRAND.graphite,
+      emphasis: false,
+    },
+    {
+      label: 'TOTAL ABATIDO',
+      value: formatBRL(totalAbatido),
+      labelColor: PDF_BRAND.muted,
+      valueColor: PDF_BRAND.graphite,
+      emphasis: false,
+    },
+    {
+      label: 'SALDO LIVRE KLABIN',
+      value: formatBRL(saldoLivre),
+      labelColor: PDF_BRAND.brown,
+      valueColor: saldoLivre >= 0 ? PDF_BRAND.orangeDark : PDF_BRAND.danger,
+      emphasis: true,
+    },
+  ];
 
-  // Col 2: Total Abatido
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
-  doc.setTextColor('#64748B');
-  doc.text('TOTAL ABATIDO', 14 + colWidth + 6, summaryBoxY + 5.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor('#B91C1C'); // Crimson red
-  doc.text(formatBRL(totalAbatido), 14 + colWidth + 6, summaryBoxY + 12);
+  summaryColumns.forEach((column, index) => {
+    const x = summaryLeft + colWidth * index + colPadding;
 
-  // Col 3: Saldo Livre Klabin
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
-  doc.setTextColor('#1E293B');
-  doc.text('SALDO LIVRE KLABIN', 14 + colWidth * 2 + 6, summaryBoxY + 5.5);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10.5);
-  doc.setTextColor(saldoLivre >= 0 ? '#1B4332' : '#B91C1C');
-  doc.text(formatBRL(saldoLivre), 14 + colWidth * 2 + 6, summaryBoxY + 12);
+    doc.setFont(family, column.emphasis ? 'bold' : 'normal');
+    doc.setTextColor(column.labelColor);
+    drawFittedText(doc, column.label, x, summaryBoxY + 6.5, {
+      maxWidth: colTextWidth,
+      baseSize: 8,
+      minSize: 6.5,
+      maxLines: 1,
+    });
+
+    doc.setFont(family, 'bold');
+    doc.setTextColor(column.valueColor);
+    drawFittedText(doc, column.value, x, summaryBoxY + 14.5, {
+      maxWidth: colTextWidth,
+      baseSize: 11,
+      minSize: 8.5,
+      maxLines: 1,
+    });
+  });
 
   // 3. Build Movements (Chronological: oldest -> newest)
   interface MovementItem {
@@ -443,13 +391,16 @@ export function generateKlabinStatementPdf({
     });
   });
 
-  movements.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  // Newest first, consistent with every dated listing in the app. A raw string
+  // compare only happened to work for ISO dates and silently misordered any
+  // legacy DD/MM/YYYY value; the shared util understands both.
+  const orderedMovements = sortByDateDescending(movements, (movement) => movement.date);
 
   const tableHead = [
     ['Data', 'Movimento', 'Descrição', 'Entrada', 'Saída'],
   ];
 
-  const tableBody = movements.map((m) => [
+  const tableBody = orderedMovements.map((m) => [
     formatDate(m.date),
     m.movimento,
     m.descricao,
@@ -462,39 +413,18 @@ export function generateKlabinStatementPdf({
   ];
 
   autoTable(doc, {
-    startY: summaryBoxY + summaryBoxHeight + 5,
+    startY: summaryBoxY + summaryBoxHeight + 6,
     head: tableHead,
     body: tableBody,
     foot: tableFoot,
-    theme: 'grid',
-    styles: {
-      font: 'helvetica',
-      fontSize: 8.5,
-      cellPadding: 2.5,
-      textColor: '#0F172A',
-      lineColor: '#CBD5E1',
-      lineWidth: 0.15,
-    },
-    headStyles: {
-      fillColor: '#1B4332',
-      textColor: '#FFFFFF',
-      fontStyle: 'bold',
-      halign: 'left',
-    },
-    footStyles: {
-      fillColor: '#F8FAFC',
-      textColor: '#0F172A',
-      fontStyle: 'bold',
-      fontSize: 9,
-      lineColor: '#94A3B8',
-      lineWidth: 0.25,
-    },
+    ...getBrandTableStyles(doc, 9),
     columnStyles: {
       0: { halign: 'center', cellWidth: 26 }, // Data
       1: { halign: 'center', cellWidth: 26 }, // Movimento
       2: { halign: 'left' },                  // Descrição
-      3: { halign: 'right', cellWidth: 32 },  // Entrada
-      4: { halign: 'right', cellWidth: 32 },  // Saída
+      3: { halign: 'right', cellWidth: 30 },  // Entrada
+      // Carries the closing balance in the footer, so it needs the extra room.
+      4: { halign: 'right', cellWidth: 36 },  // Saída
     },
     didParseCell: (data) => {
       if (data.section === 'foot') {
@@ -506,11 +436,10 @@ export function generateKlabinStatementPdf({
         if (data.column.index === 4) {
           data.cell.styles.halign = 'right';
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.textColor = saldoLivre >= 0 ? '#1B4332' : '#B91C1C';
+          data.cell.styles.textColor = saldoLivre >= 0 ? PDF_BRAND.orangeDark : PDF_BRAND.danger;
         }
       }
     },
-    margin: { left: 14, right: 14 },
   });
 
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -583,6 +512,12 @@ export function generateDriverPendingPdf({
     return false; // Indicating no pending freights
   }
 
+  // getFreightRecords returns every Carga followed by every Venda, so without
+  // this the rows arrive interleaved by source instead of by date. No secondary
+  // key, matching the on-screen list in getFreightGroupsByDriver: `createdAt` is
+  // synthesised at midnight for Cargas and would split same-day rows by type.
+  const orderedFreights = sortByDateDescending(pendingFreights, (freight) => freight.date);
+
   const companyInfo = extractCompanyInfo(appSettings, customLogo);
   const doc = createBasePdfDocument();
 
@@ -601,7 +536,7 @@ export function generateDriverPendingPdf({
     detailsBox
   );
 
-  const totalDevido = pendingFreights.reduce(
+  const totalDevido = orderedFreights.reduce(
     (acc, f) => acc + (Number(f.freightCost) || 0),
     0
   );
@@ -611,7 +546,7 @@ export function generateDriverPendingPdf({
     ['Data', 'Referência', 'Quantidade', 'Valor do Frete'],
   ];
 
-  const tableBody = pendingFreights.map((f) => {
+  const tableBody = orderedFreights.map((f) => {
     const ref = f.type === 'CARGA' ? 'Carga' : 'Venda';
     const qtdFormatted = `${formatNumber(f.tons, 2)} ton`;
     return [
@@ -631,29 +566,7 @@ export function generateDriverPendingPdf({
     head: tableHead,
     body: tableBody,
     foot: tableFoot,
-    theme: 'grid',
-    styles: {
-      font: 'helvetica',
-      fontSize: 8.5,
-      cellPadding: 2.5,
-      textColor: '#0F172A',
-      lineColor: '#CBD5E1',
-      lineWidth: 0.15,
-    },
-    headStyles: {
-      fillColor: '#1B4332',
-      textColor: '#FFFFFF',
-      fontStyle: 'bold',
-      halign: 'left',
-    },
-    footStyles: {
-      fillColor: '#F8FAFC',
-      textColor: '#0F172A',
-      fontStyle: 'bold',
-      fontSize: 9,
-      lineColor: '#94A3B8',
-      lineWidth: 0.25,
-    },
+    ...getBrandTableStyles(doc, 9.5),
     columnStyles: {
       0: { halign: 'center', cellWidth: 28 }, // Data
       1: { halign: 'center', cellWidth: 32 }, // Referência
@@ -670,11 +583,10 @@ export function generateDriverPendingPdf({
         if (data.column.index === 3) {
           data.cell.styles.halign = 'right';
           data.cell.styles.fontStyle = 'bold';
-          data.cell.styles.textColor = '#B45309'; // Amber highlight
+          data.cell.styles.textColor = PDF_BRAND.orangeDark;
         }
       }
     },
-    margin: { left: 14, right: 14 },
   });
 
   const todayIso = new Date().toISOString().slice(0, 10);

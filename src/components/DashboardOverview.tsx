@@ -3,6 +3,7 @@ import { KlabinDatabase, TableType } from '../types';
 import { formatBRL, formatNumber, formatDateBR } from '../utils/formatters';
 import { getPendingFreightTotal, getPaidFreightTotal, getTotalFreight } from '../utils/freightUtils';
 import { calcKlabinBalance } from '../utils/klabinBalance';
+import { sortByDateDescending } from '../utils/dateSorting';
 import {
   Wallet,
   Truck,
@@ -94,9 +95,10 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       subtitle: string;
       value: number;
       type: 'CARGA' | 'DEPOSITO' | 'VENDA';
+      createdAt?: string;
     }> = [];
 
-    database.Cargas.slice(-6).forEach((c) => {
+    database.Cargas.forEach((c) => {
       list.push({
         id: c.id,
         date: c.date,
@@ -107,7 +109,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       });
     });
 
-    database.Depositos_Klabin.slice(-6).forEach((d) => {
+    database.Depositos_Klabin.forEach((d) => {
       list.push({
         id: d.id,
         date: d.date,
@@ -118,7 +120,7 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
       });
     });
 
-    (database.Vendas || []).slice(-6).forEach((v) => {
+    (database.Vendas || []).forEach((v) => {
       list.push({
         id: v.id,
         date: v.date,
@@ -126,10 +128,11 @@ export const DashboardOverview: React.FC<DashboardOverviewProps> = ({
         subtitle: `${v.product} (${v.quantity} un/ton)`,
         value: Number(v.totalValue) || 0,
         type: 'VENDA',
+        createdAt: v.createdAt,
       });
     });
 
-    return list.sort((a, b) => (b.date > a.date ? 1 : -1)).slice(0, 8);
+    return sortByDateDescending(list, (record) => record.date, (record) => record.createdAt).slice(0, 8);
   }, [database]);
 
   return (

@@ -3,6 +3,7 @@ import { DepositoKlabinRecord } from '../types';
 import { formatCurrency, formatDateBR } from '../utils/formatters';
 import { sumDepositos } from '../utils/klabinBalance';
 import { Building2, Plus, Edit2, Trash2, Lock } from 'lucide-react';
+import { sortByDateDescending } from '../utils/dateSorting';
 
 interface TableDepositosProps {
   records: DepositoKlabinRecord[];
@@ -21,11 +22,11 @@ export const TableDepositos: React.FC<TableDepositosProps> = ({
   onAdd,
   lockedMonths = [],
 }) => {
-  const filtered = records.filter((r) => {
+  const filtered = sortByDateDescending(records.filter((r) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return r.date?.toLowerCase().includes(term) || r.notes?.toLowerCase().includes(term);
-  });
+  }), (record) => record.date);
 
   const totalDeposits = sumDepositos(filtered);
 

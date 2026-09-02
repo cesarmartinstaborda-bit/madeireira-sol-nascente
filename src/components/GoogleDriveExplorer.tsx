@@ -13,9 +13,10 @@ import {
   downloadDriveFileText,
   deleteDriveFile,
   formatDriveFileSize,
-  getOrCreateFolder,
+  DRIVE_FOLDERS,
   DriveFileItem,
 } from '../utils/googleDrive';
+import { generateConsolidatedReportPdf } from '../utils/consolidatedReportPdf';
 import { GoogleSignInButton } from './GoogleSignInButton';
 import { KlabinDatabase } from '../types';
 import { generateCSVString, validateAndSanitizeBackupJSON } from '../utils/storage';
@@ -37,6 +38,7 @@ import {
   ShieldCheck,
   Plus,
   ArrowUpRight,
+  FileBarChart,
 } from 'lucide-react';
 import { formatDateTimeBR } from '../utils/formatters';
 
@@ -59,6 +61,7 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [isBackingUp, setIsBackingUp] = useState<boolean>(false);
   const [isExportingCSVs, setIsExportingCSVs] = useState<boolean>(false);
+  const [isGeneratingReport, setIsGeneratingReport] = useState<boolean>(false);
   const [isUploadingCustom, setIsUploadingCustom] = useState<boolean>(false);
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<DriveFileItem | null>(null);
   const [restoreConfirmTarget, setRestoreConfirmTarget] = useState<DriveFileItem | null>(null);
@@ -95,13 +98,21 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
   const loadDriveData = async () => {
     setIsLoadingFiles(true);
     try {
-      // Find or create dedicated folder
-      const folderId = await getOrCreateFolder('Madeireira Sol Nascente / Backups');
-      setAppFolderId(folderId);
+      setAppFolderId(DRIVE_FOLDERS.backups);
 
-      // List all relevant files inside the folder or root
-      const fileList = await listDriveFiles({ folderId });
-      setFiles(fileList);
+      // Cloud files span the backup and generated-report destinations.
+      const [backupFiles, reportFiles] = await Promise.all([
+        listDriveFiles({ folderId: DRIVE_FOLDERS.backups }),
+        listDriveFiles({ folderId: DRIVE_FOLDERS.desktop }),
+      ]);
+      const filesById = new Map(
+        [...backupFiles, ...reportFiles].map((file) => [file.id, file])
+      );
+      setFiles(
+        [...filesById.values()].sort((a, b) =>
+          (b.modifiedTime || '').localeCompare(a.modifiedTime || '')
+        )
+      );
     } catch (err: any) {
       console.error('[GoogleDrive] Erro ao carregar arquivos:', err);
       onShowToast(`Erro no Google Drive: ${err.message || 'Falha ao sincronizar'}`);
@@ -173,7 +184,7 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
 
     setIsExportingCSVs(true);
     try {
-      const folderId = await getOrCreateFolder('Madeireira Sol Nascente / Backups');
+      const folderId = DRIVE_FOLDERS.backups;
       const now = new Date().toISOString().slice(0, 10);
 
       const tablesToExport: { name: string; csv: string }[] = [
@@ -249,6 +260,34 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
     }
   };
 
+  // Generate a single consolidated PDF report (executive summary + all tables) and upload it to Drive
+  const handleGenerateConsolidatedReport = async () => {
+    if (!user || !token) {
+      onShowToast('Conecte sua conta Google primeiro.');
+      return;
+    }
+
+    setIsGeneratingReport(true);
+    try {
+      const { blob, filename } = generateConsolidatedReportPdf(database);
+      const created = await uploadFileToDrive({
+        name: filename,
+        content: blob,
+        mimeType: 'application/pdf',
+        folderId: DRIVE_FOLDERS.desktop,
+        description: 'Relatório consolidado (resumo executivo + tabelas) gerado pelo sistema',
+      });
+
+      onShowToast(`Relatório consolidado "${created.name || filename}" salvo no Google Drive!`);
+      await loadDriveData();
+    } catch (err: any) {
+      console.error('[GoogleDrive] Erro ao gerar relatório consolidado:', err);
+      onShowToast(`Erro ao gerar relatório: ${err.message || 'Falha na conexão'}`);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   // Upload arbitrary custom file (receipt, invoice, document)
   const handleCustomFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -256,7 +295,7 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
 
     setIsUploadingCustom(true);
     try {
-      const folderId = await getOrCreateFolder('Madeireira Sol Nascente / Backups');
+      const folderId = DRIVE_FOLDERS.backups;
       await uploadFileToDrive({
         name: file.name,
         content: file,
@@ -381,7 +420,7 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
       {user && token ? (
         <>
           {/* Quick Action Toolbar */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
             {/* Backup to Drive */}
             <button
               type="button"
@@ -422,6 +461,28 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
                 </span>
                 <span className="text-[10px] text-slate-400 block mt-0.5">
                   5 tabelas (Cargas, Fretes, Vendas...)
+                </span>
+              </div>
+            </button>
+
+            {/* Consolidated PDF Report */}
+            <button
+              type="button"
+              onClick={handleGenerateConsolidatedReport}
+              disabled={isGeneratingReport}
+              className="flex items-center justify-center space-x-2.5 p-3.5 bg-[#1e232d] hover:bg-[#262c38] active:scale-[0.99] border border-purple-500/30 hover:border-purple-500/50 rounded-xl text-left transition-all group disabled:opacity-50"
+            >
+              {isGeneratingReport ? (
+                <RefreshCw className="w-5 h-5 text-purple-400 animate-spin flex-shrink-0" />
+              ) : (
+                <FileBarChart className="w-5 h-5 text-purple-400 group-hover:scale-110 transition-transform flex-shrink-0" />
+              )}
+              <div>
+                <span className="text-xs font-bold text-white block">
+                  {isGeneratingReport ? 'Gerando Relatório...' : 'Relatório Consolidado PDF'}
+                </span>
+                <span className="text-[10px] text-slate-400 block mt-0.5">
+                  Resumo executivo + todas as tabelas
                 </span>
               </div>
             </button>

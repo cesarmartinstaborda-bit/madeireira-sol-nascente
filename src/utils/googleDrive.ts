@@ -14,7 +14,13 @@ export interface DriveFileItem {
 }
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
-const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+const UPLOAD_FIELDS = 'id,name,mimeType,size,createdTime,modifiedTime,webViewLink,iconLink,parents';
+const UPLOAD_API_URL = `https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=${encodeURIComponent(UPLOAD_FIELDS)}`;
+
+export const DRIVE_FOLDERS = {
+  backups: '1vb-iYAB_zBL2Fq4bmvjNUGeNouxXPUJy',
+  desktop: '1F835cA1x6wzGA_eI8WZ28sSK5eEIySQf',
+} as const;
 
 /**
  * Ensures authorized headers with access token
@@ -179,10 +185,83 @@ export async function uploadFileToDrive(options: {
 }
 
 /**
+ * Returns the fixed destination for generated PDFs. This intentionally does
+ * not look up a folder by name: the configured Drive folder ID is authoritative.
+ */
+export async function resolvePdfDriveFolderId(): Promise<{ id: string; usedFallback: boolean }> {
+  return { id: DRIVE_FOLDERS.desktop, usedFallback: false };
+}
+
+export type PdfAutoUploadStatus = 'uploaded' | 'skipped-no-session' | 'error';
+
+export interface PdfAutoUploadResult {
+  status: PdfAutoUploadStatus;
+  filename: string;
+  fileId?: string;
+  usedFallbackFolder?: boolean;
+  message?: string;
+}
+
+function emitPdfUploadNotice(result: PdfAutoUploadResult): void {
+  if (typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {
+    window.dispatchEvent(new CustomEvent<PdfAutoUploadResult>('drive-pdf-autoupload', { detail: result }));
+  }
+}
+
+/**
+ * Best-effort mirror of a freshly generated PDF into the dedicated Drive folder.
+ * NEVER throws: if there is no active Drive session, or the upload fails, it
+ * resolves with a non-'uploaded' status and emits a discreet
+ * 'drive-pdf-autoupload' window event so the UI can show a subtle notice. The
+ * local PDF download is expected to have already happened at the call site, so
+ * this can never block or break PDF generation.
+ */
+export async function autoUploadPdfToDrive(blob: Blob, filename: string): Promise<PdfAutoUploadResult> {
+  let result: PdfAutoUploadResult;
+  try {
+    const token = await getAccessToken();
+    if (!token) {
+      result = {
+        status: 'skipped-no-session',
+        filename,
+        message: 'Sem sessão do Google Drive ativa — upload ignorado.',
+      };
+      emitPdfUploadNotice(result);
+      return result;
+    }
+
+    const { id: folderId, usedFallback } = await resolvePdfDriveFolderId();
+    const uploaded = await uploadFileToDrive({
+      name: filename,
+      content: blob,
+      mimeType: 'application/pdf',
+      folderId,
+      description: `PDF gerado automaticamente pelo sistema em ${new Date().toLocaleString('pt-BR')}`,
+    });
+
+    result = {
+      status: 'uploaded',
+      filename,
+      fileId: uploaded.id,
+      usedFallbackFolder: usedFallback,
+    };
+  } catch (err: any) {
+    result = {
+      status: 'error',
+      filename,
+      message: err?.message || 'Falha desconhecida no upload para o Drive.',
+    };
+  }
+
+  emitPdfUploadNotice(result);
+  return result;
+}
+
+/**
  * Uploads a full JSON database backup directly to Google Drive
  */
 export async function uploadBackupToDrive(database: KlabinDatabase): Promise<DriveFileItem> {
-  const folderId = await getOrCreateFolder('Madeireira Sol Nascente / Backups');
+  const folderId = DRIVE_FOLDERS.backups;
   const now = new Date();
   const dateStr = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const fileName = `Backup_SolNascente_${dateStr}.json`;

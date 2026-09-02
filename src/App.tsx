@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   TableType,
   ResumoRecord,
@@ -94,6 +94,29 @@ export default function App() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
+  // Discreet feedback when an auto-generated PDF is (or isn't) mirrored to Google Drive
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as
+        | { status: string; usedFallbackFolder?: boolean; message?: string }
+        | undefined;
+      if (!detail) return;
+      if (detail.status === 'uploaded') {
+        showToast(
+          detail.usedFallbackFolder
+            ? 'PDF enviado ao Google Drive (pasta "Madereira Desktop" criada automaticamente).'
+            : 'PDF também salvo na pasta "Madereira Desktop" do Google Drive.'
+        );
+      } else if (detail.status === 'skipped-no-session') {
+        showToast('PDF gerado localmente. Google Drive desconectado — upload ignorado.');
+      } else {
+        showToast(`PDF gerado. Falha ao enviar ao Drive: ${detail.message || 'erro desconhecido'}.`);
+      }
+    };
+    window.addEventListener('drive-pdf-autoupload', handler);
+    return () => window.removeEventListener('drive-pdf-autoupload', handler);
+  }, []);
 
   // PRODUTOS HANDLERS
   const { handleAddProduto, handleUpdateProduto, handleDeleteProduto } = useProdutoHandlers({

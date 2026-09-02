@@ -1,0 +1,99 @@
+{
+  "timestamp": "2026-08-28T23:09:37.076Z",
+  "target": ".",
+  "depth": "deep",
+  "type": "all",
+  "summary": {
+    "critical": 1,
+    "high": 13,
+    "medium": 0,
+    "low": 0,
+    "total": 14
+  },
+  "findings": [
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:@electron/rebuild",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:app-builder-lib",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:builder-util",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:builder-util-runtime",
+      "description": "electron-updater: Cross-origin redi"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:cacache",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:dmg-builder",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:electron",
+      "description": "Electron has ASAR Integrity Bypass "
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:electron-builder",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:electron-builder-squirrel-windows",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:electron-publish",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:extract-zip",
+      "description": "extract-zip unvalidated symlink pat"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:make-fetch-happen",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[33mHIGH\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:node-gyp",
+      "description": "Vulnerability"
+    },
+    {
+      "severity": "\u001b[31mCRITICAL\u001b[0m",
+      "type": "Dependency CVE",
+      "location": "package.json:tar",
+      "description": "node-tar Vulnerable to Arbitrary Fi"
+    }
+  ]
+}

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { TableType, ProdutoRecord, ClientRecord, MotoristaRecord } from '../types';
 import { generateId } from '../utils/idGenerator';
-import { formatCurrency } from '../utils/formatters';
+import { formatBRLCurrencyInput, formatCurrency, parseBRLCurrency } from '../utils/formatters';
 import { X, Save, AlertCircle } from 'lucide-react';
 
 interface RecordModalProps {
@@ -69,9 +69,9 @@ export const RecordModal: React.FC<RecordModalProps> = ({
 
       // Preserve historical price intact on edit
       if (recordToEdit.valuePerTon !== undefined && recordToEdit.valuePerTon !== null) {
-        setValuePerTon(String(recordToEdit.valuePerTon));
+        setValuePerTon(formatBRLCurrencyInput(recordToEdit.valuePerTon));
       } else if (matchedProd) {
-        setValuePerTon(String(matchedProd.referencePrice));
+        setValuePerTon(formatBRLCurrencyInput(matchedProd.referencePrice));
       } else {
         setValuePerTon('');
       }
@@ -90,7 +90,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
 
       if (recordToEdit.freightPayable) setFreightPayable(recordToEdit.freightPayable === 'NO' ? 'NO' : 'YES');
       if (recordToEdit.freightCost !== undefined && recordToEdit.freightCost !== null) {
-        setFreightCost(String(recordToEdit.freightCost));
+        setFreightCost(formatBRLCurrencyInput(recordToEdit.freightCost));
       } else {
         const t = parseFloat(recordToEdit.quantityTons) || 0;
         setFreightCost(String(t * freightRatePerTon));
@@ -102,7 +102,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         setDeductFromBalance('YES');
       }
 
-      if (recordToEdit.value !== undefined) setValue(String(recordToEdit.value));
+      if (recordToEdit.value !== undefined) setValue(formatBRLCurrencyInput(recordToEdit.value));
       if (recordToEdit.notes) setNotes(recordToEdit.notes);
     } else {
       setDate(new Date().toISOString().split('T')[0]);
@@ -113,7 +113,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         const first = activeProds[0];
         setSelectedProductId(first.id);
         setProduct(first.name);
-        setValuePerTon(String(first.referencePrice));
+        setValuePerTon(formatBRLCurrencyInput(first.referencePrice));
       } else {
         setSelectedProductId('');
         setProduct('');
@@ -126,7 +126,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
 
       const shouldPayFreight = defaultCargoFreightPayable !== false;
       setFreightPayable(shouldPayFreight ? 'YES' : 'NO');
-      setFreightCost(shouldPayFreight ? String(40 * freightRatePerTon) : '0');
+      setFreightCost(formatBRLCurrencyInput(shouldPayFreight ? 40 * freightRatePerTon : 0));
       setDeductFromBalance(defaultDeductFromBalance ? 'YES' : 'NO');
       setValue('');
       setNotes('');
@@ -142,7 +142,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
     const selectedProd = produtos.find((p) => p.id === newProdId);
     if (selectedProd) {
       setProduct(selectedProd.name);
-      setValuePerTon(String(selectedProd.referencePrice));
+      setValuePerTon(formatBRLCurrencyInput(selectedProd.referencePrice));
     } else {
       setProduct('');
       setValuePerTon('');
@@ -165,7 +165,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
   const handleQuantityChange = (val: string) => {
     setQuantityTons(val);
     const tons = parseFloat(val) || 0;
-    setFreightCost(String(tons * freightRatePerTon));
+    setFreightCost(formatBRLCurrencyInput(tons * freightRatePerTon));
   };
 
   // Available products: active ones, plus the currently selected inactive product if editing
@@ -192,7 +192,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
     e.preventDefault();
 
     if (isDeposito) {
-      const depVal = parseFloat(value) || 0;
+      const depVal = parseBRLCurrency(value);
       if (isNaN(depVal) || depVal <= 0) {
         alert('Informe um valor de depósito válido.');
         return;
@@ -214,9 +214,9 @@ export const RecordModal: React.FC<RecordModalProps> = ({
       }
 
       const tons = parseFloat(quantityTons) || 0;
-      const vPerTon = parseFloat(valuePerTon) || 0;
+      const vPerTon = parseBRLCurrency(valuePerTon) || 0;
       const totalVal = tons * vPerTon;
-      const fCost = freightPayable === 'YES' ? parseFloat(freightCost) || (tons * freightRatePerTon) : 0;
+      const fCost = freightPayable === 'YES' ? parseBRLCurrency(freightCost) || (tons * freightRatePerTon) : 0;
 
       // Extract driver info if selected
       const matchedDriver =
@@ -296,10 +296,11 @@ export const RecordModal: React.FC<RecordModalProps> = ({
           {isDeposito ? (
             <>
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Valor do Depósito (R$) *</label>
+                <label htmlFor="deposit-value" className="block text-slate-300 font-semibold mb-1">Valor do Depósito (R$) *</label>
                 <input
-                  type="number"
-                  step="any"
+                  id="deposit-value"
+                  type="text"
+                  inputMode="decimal"
                   required
                   placeholder="0,00"
                   value={value}
@@ -366,8 +367,8 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Valor por Tonelada (R$) *</label>
                   <input
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     required
                     value={valuePerTon}
                     onChange={(e) => setValuePerTon(e.target.value)}
@@ -380,7 +381,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
               <div className="p-3 bg-[var(--graphite-surface-2)] border border-[var(--graphite-border-subtle)] rounded-xl flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-slate-300">Total da Carga (Qtd × R$/Ton):</span>
                 <span className="text-sm font-black text-emerald-400 font-mono">
-                  {formatCurrency((parseFloat(quantityTons) || 0) * (parseFloat(valuePerTon) || 0))}
+                  {formatCurrency((parseFloat(quantityTons) || 0) * (parseBRLCurrency(valuePerTon) || 0))}
                 </span>
               </div>
 
@@ -438,8 +439,8 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                   <div>
                     <label className="block text-slate-300 font-semibold mb-1">Custo Frete (R$)</label>
                     <input
-                      type="number"
-                      step="any"
+                      type="text"
+                      inputMode="decimal"
                       value={freightCost}
                       onChange={(e) => setFreightCost(e.target.value)}
                       className="w-full px-3 py-2 bg-[#12151a] border border-[var(--graphite-border-base)] rounded-xl text-blue-400 font-mono font-bold focus:outline-none focus:border-[var(--graphite-accent-blue)]"

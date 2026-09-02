@@ -44,6 +44,8 @@ import {
 } from 'lucide-react';
 import {
   formatBRL,
+  formatBRLCurrencyInput,
+  parseBRLCurrency,
   maskCNPJ,
   MONTH_NAMES_BR,
   formatMonthYearBR,
@@ -149,7 +151,7 @@ export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
 
   // ================= FRETES LOCAL STATE =================
   const [localFreightRate, setLocalFreightRate] = useState<string>(
-    String(appSettings?.freightRatePerTon ?? freightRatePerTon ?? 15)
+    formatBRLCurrencyInput(appSettings?.freightRatePerTon ?? freightRatePerTon ?? 15)
   );
   const [defaultCargoFreightPayable, setDefaultCargoFreightPayable] = useState<boolean>(
     appSettings?.freight?.defaultCargoFreightPayable !== undefined
@@ -256,7 +258,7 @@ export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
     }
 
     if (appSettings?.freightRatePerTon !== undefined) {
-      setLocalFreightRate(String(appSettings.freightRatePerTon));
+      setLocalFreightRate(formatBRLCurrencyInput(appSettings.freightRatePerTon));
     }
 
     if (appSettings?.freight?.defaultCargoFreightPayable !== undefined) {
@@ -346,7 +348,7 @@ export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
   const handleSaveFreight = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const parsedRate = parseFloat(localFreightRate);
+    const parsedRate = parseBRLCurrency(localFreightRate);
     const validRate = !isNaN(parsedRate) && parsedRate > 0 ? parsedRate : 15;
 
     const freightData: FreightSettings = {
@@ -903,7 +905,7 @@ export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
                 <DollarSign className="w-4 h-4 text-[var(--graphite-accent-blue)]" />
               </div>
               <p className="text-xl font-bold font-mono text-white">
-                {formatBRL(parseFloat(localFreightRate) || 15)}
+                {formatBRL(parseBRLCurrency(localFreightRate) || 15)}
                 <span className="text-xs text-slate-400 font-normal"> / ton</span>
               </p>
               <p className="text-[10px] text-slate-500">Valor base para novos lançamentos</p>
@@ -960,13 +962,12 @@ export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
                     R$
                   </span>
                   <input
-                    type="number"
-                    step="0.01"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     required
                     value={localFreightRate}
                     onChange={(e) => setLocalFreightRate(e.target.value)}
-                    placeholder="15.00"
+                    placeholder="15,00"
                     className="w-full pl-10 pr-3.5 py-2.5 bg-[#12151a] border border-[var(--graphite-border-base)] rounded-xl text-white text-xs font-mono font-bold focus:outline-none focus:border-[var(--graphite-accent-blue)]"
                   />
                 </div>

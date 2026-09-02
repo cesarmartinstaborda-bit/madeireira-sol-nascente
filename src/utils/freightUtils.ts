@@ -1,4 +1,5 @@
 import { CargaRecord, VendaRecord, MotoristaRecord, AppSettings, KlabinDatabase } from '../types';
+import { compareDateValuesDescending, sortByDateDescending } from './dateSorting';
 
 export interface UnifiedFreightRecord {
   id: string;
@@ -21,6 +22,8 @@ export interface UnifiedFreightRecord {
 }
 
 export interface DriverFreightGroup {
+  /** Stable identity of the account; unique across groups, safe as a React key. */
+  groupKey: string;
   driverId?: string;
   driverKey: string;
   motoristaObj?: MotoristaRecord;
@@ -230,13 +233,28 @@ export function getFreightGroupsByDriver(
   searchTerm?: string
 ): DriverFreightGroup[] {
   const records = getFreightRecords(database);
+
+  // Records that display under the same label must land in the same account,
+  // even when only some of them still carry a usable driverId. A Carga left
+  // pointing at a deleted Motorista keeps that orphan id while a Venda for the
+  // same plate has none, and grouping on the raw `driverId || driverKey` split
+  // one driver into two blocks that rendered under the same name — reading, on
+  // screen, as a single block whose dates jump back up in the middle.
+  const canonicalKeyByDriverKey = new Map<string, string>();
+  records.forEach((rec) => {
+    if (rec.driverId && !canonicalKeyByDriverKey.has(rec.driverKey)) {
+      canonicalKeyByDriverKey.set(rec.driverKey, rec.driverId);
+    }
+  });
+
   const groupMap = new Map<string, DriverFreightGroup>();
 
   records.forEach((rec) => {
-    const groupKey = rec.driverId || rec.driverKey;
+    const groupKey = canonicalKeyByDriverKey.get(rec.driverKey) || rec.driverKey;
 
     if (!groupMap.has(groupKey)) {
       groupMap.set(groupKey, {
+        groupKey,
         driverId: rec.driverId,
         driverKey: rec.driverKey,
         motoristaObj: rec.matchedDriver,
@@ -262,6 +280,22 @@ export function getFreightGroupsByDriver(
   });
 
   const groups = Array.from(groupMap.values());
+
+  // Newest freight first. No secondary key on purpose: `createdAt` exists on
+  // Vendas but is synthesised at midnight for Cargas (see sanitizeDatabase), so
+  // using it pushed every Venda above every Carga on a shared date for a reason
+  // that means nothing to the reader. Without it sortByDateDescending falls back
+  // to its stable original order, like TableCargas and TableDepositos do.
+  groups.forEach((group) => {
+    group.records = sortByDateDescending(group.records, (record) => record.date);
+  });
+
+  // Accounts follow their own most recent freight, so scrolling the page reads
+  // newest-first instead of following the order rows happened to sit in.
+  groups.sort((a, b) => {
+    const primary = compareDateValuesDescending(a.records[0]?.date, b.records[0]?.date);
+    return primary !== 0 ? primary : a.driverKey.localeCompare(b.driverKey, 'pt-BR');
+  });
 
   if (!searchTerm) return groups;
 

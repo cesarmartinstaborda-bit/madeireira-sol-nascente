@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ClientRecord, VendaRecord, ProdutoRecord, MotoristaRecord, AppSettings } from '../types';
-import { formatCurrency, formatNumber, formatDateBR, isMonthLocked } from '../utils/formatters';
+import { sortByDateDescending } from '../utils/dateSorting';
+import { formatBRLCurrencyInput, formatCurrency, formatNumber, formatDateBR, isMonthLocked, parseBRLCurrency } from '../utils/formatters';
 import {
   UserCheck,
   Plus,
@@ -158,7 +159,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
       const q = String(venda.quantity);
       setVendaQuantity(q);
       // Preservar preço histórico da venda
-      setVendaUnitPrice(String(venda.unitPrice));
+      setVendaUnitPrice(formatBRLCurrencyInput(venda.unitPrice));
       setVendaNotes(venda.notes);
 
       // Frete resolution
@@ -175,7 +176,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
       setVendaDriverPlate(venda.driverPlate || (matchedDriver ? `${matchedDriver.name} / ${matchedDriver.licensePlate}` : ''));
 
       if (venda.freightCost !== undefined && venda.freightCost !== null) {
-        setVendaFreightCost(String(venda.freightCost));
+        setVendaFreightCost(formatBRLCurrencyInput(venda.freightCost));
       } else {
         const qtyNum = parseFloat(q) || 0;
         setVendaFreightCost(String(qtyNum * freightRatePerTon));
@@ -190,7 +191,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
         const first = activeProdutos[0];
         setVendaProductId(first.id);
         setVendaProduct(first.name);
-        setVendaUnitPrice(String(first.referencePrice));
+        setVendaUnitPrice(formatBRLCurrencyInput(first.referencePrice));
       } else {
         setVendaProductId('');
         setVendaProduct('');
@@ -203,7 +204,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
       setVendaFreightPayable(shouldPayFreight ? 'YES' : 'NO');
       setVendaDriverId('');
       setVendaDriverPlate('');
-      setVendaFreightCost(shouldPayFreight ? String(1 * freightRatePerTon) : '0');
+      setVendaFreightCost(formatBRLCurrencyInput(shouldPayFreight ? freightRatePerTon : 0));
     }
     setShowVendaModal(true);
   };
@@ -214,7 +215,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
     const selectedProd = produtos.find((p) => p.id === newProdId);
     if (selectedProd) {
       setVendaProduct(selectedProd.name);
-      setVendaUnitPrice(String(selectedProd.referencePrice));
+      setVendaUnitPrice(formatBRLCurrencyInput(selectedProd.referencePrice));
     } else {
       setVendaProduct('');
       setVendaUnitPrice('');
@@ -236,7 +237,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
     setVendaQuantity(val);
     const qty = parseFloat(val) || 0;
     if (vendaFreightPayable === 'YES') {
-      setVendaFreightCost(String(qty * freightRatePerTon));
+      setVendaFreightCost(formatBRLCurrencyInput(qty * freightRatePerTon));
     }
   };
 
@@ -252,7 +253,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
     }
 
     const qty = parseFloat(vendaQuantity) || 1;
-    const price = parseFloat(vendaUnitPrice) || 0;
+    const price = parseBRLCurrency(vendaUnitPrice) || 0;
     const selectedClient = clientes.find((c) => c.id === vendaClientId);
     const cName = selectedClient ? selectedClient.name : 'Cliente Direto';
 
@@ -264,7 +265,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
       motoristas.find((m) => m.id === vendaDriverId) ||
       motoristas.find((m) => `${m.name} / ${m.licensePlate}` === vendaDriverPlate);
 
-    const fCost = vendaFreightPayable === 'YES' ? parseFloat(vendaFreightCost) || (qty * freightRatePerTon) : 0;
+    const fCost = vendaFreightPayable === 'YES' ? parseBRLCurrency(vendaFreightCost) || (qty * freightRatePerTon) : 0;
 
     const vendaPayload: Partial<VendaRecord> = {
       date: vendaDate,
@@ -408,11 +409,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
 
     // Sort sales inside each group by date descending
     groupsArray.forEach((g) => {
-      g.sales.sort((a, b) => {
-        const dateCmp = (b.date || '').localeCompare(a.date || '');
-        if (dateCmp !== 0) return dateCmp;
-        return (b.id || '').localeCompare(a.id || '');
-      });
+      g.sales = sortByDateDescending(g.sales, (sale) => sale.date, (sale) => sale.createdAt);
     });
 
     // Sort client groups:
@@ -1110,8 +1107,8 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
                 <div>
                   <label className="block text-slate-300 font-semibold mb-1">Preço Unitário (R$) *</label>
                   <input
-                    type="number"
-                    step="1"
+                    type="text"
+                    inputMode="decimal"
                     required
                     value={vendaUnitPrice}
                     onChange={(e) => setVendaUnitPrice(e.target.value)}
@@ -1124,7 +1121,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
               <div className="p-3 bg-[var(--graphite-surface-2)] border border-[var(--graphite-border-subtle)] rounded-xl flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-slate-300">Total da Venda (Qtd × Preço):</span>
                 <span className="text-sm font-black text-emerald-400 font-mono">
-                  {formatCurrency((parseFloat(vendaQuantity) || 0) * (parseFloat(vendaUnitPrice) || 0))}
+                  {formatCurrency((parseFloat(vendaQuantity) || 0) * (parseBRLCurrency(vendaUnitPrice) || 0))}
                 </span>
               </div>
 
@@ -1142,7 +1139,7 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
                       setVendaFreightPayable(val);
                       if (val === 'YES') {
                         const qtyNum = parseFloat(vendaQuantity) || 0;
-                        setVendaFreightCost(String(qtyNum * freightRatePerTon));
+                        setVendaFreightCost(formatBRLCurrencyInput(qtyNum * freightRatePerTon));
                       }
                     }}
                     className="px-2.5 py-1 text-xs bg-[#12151a] border border-[var(--graphite-border-base)] text-white rounded-lg font-semibold focus:outline-none focus:border-[var(--graphite-accent-blue)]"
@@ -1209,8 +1206,8 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
                     <div>
                       <label className="block text-slate-300 font-semibold mb-1">Custo Frete a Pagar (R$)</label>
                       <input
-                        type="number"
-                        step="1"
+                        type="text"
+                        inputMode="decimal"
                         value={vendaFreightCost}
                         onChange={(e) => setVendaFreightCost(e.target.value)}
                         className="w-full px-3 py-1.5 bg-[#12151a] border border-[var(--graphite-border-base)] rounded-xl focus:outline-none focus:border-[var(--graphite-accent-blue)] font-bold text-blue-400 font-mono"
@@ -1254,4 +1251,3 @@ export const GestaoClientesDashboard: React.FC<GestaoClientesDashboardProps> = (
     </div>
   );
 };
-

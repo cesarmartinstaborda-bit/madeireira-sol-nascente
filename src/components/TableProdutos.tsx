@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ProdutoRecord } from '../types';
-import { formatCurrency } from '../utils/formatters';
+import { formatBRLCurrencyInput, formatCurrency, parseBRLCurrency } from '../utils/formatters';
 import { Package, Plus, Edit2, Trash2, X } from 'lucide-react';
 
 interface TableProdutosProps {
@@ -36,7 +36,7 @@ export const TableProdutos: React.FC<TableProdutosProps> = ({
       setEditingProd(prod);
       setProdName(prod.name);
       setUnitOfMeasure(prod.unitOfMeasure || 'ton');
-      setRefPrice(String(prod.referencePrice));
+      setRefPrice(formatBRLCurrencyInput(prod.referencePrice));
       setStatus(prod.status || 'ACTIVE');
     } else {
       setEditingProd(null);
@@ -52,7 +52,7 @@ export const TableProdutos: React.FC<TableProdutosProps> = ({
     e.preventDefault();
     if (!prodName.trim()) return;
 
-    const parsedPrice = parseFloat(refPrice) || 0;
+    const parsedPrice = parseBRLCurrency(refPrice) || 0;
 
     if (editingProd) {
       onUpdateRecord({
@@ -119,8 +119,8 @@ export const TableProdutos: React.FC<TableProdutosProps> = ({
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">Preço de Referência (R$) *</label>
                 <input
-                  type="number"
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   required
                   value={refPrice}
                   onChange={(e) => setRefPrice(e.target.value)}
