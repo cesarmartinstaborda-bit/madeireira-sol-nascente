@@ -73,11 +73,27 @@ function getCanonicalDatabaseString(db: KlabinDatabase): string {
 }
 
 /**
- * Saves a timestamped backup copy and maintains only the last 5 backups.
- * Prevents creating duplicate backups if state is identical to the latest backup.
+ * Minimum wall-clock gap between two auto-backups. Auto-backup serializes the
+ * whole database several times (plus the up-to-5 backup array), so running it on
+ * every single mutation froze the UI on large bases. Explicit callers that need
+ * an immediate snapshot pass `force: true`.
  */
-export function createAutoBackup(cleanData: KlabinDatabase): void {
+export const AUTO_BACKUP_MIN_INTERVAL_MS = 90_000;
+let lastAutoBackupAt = 0;
+
+/**
+ * Saves a timestamped backup copy and maintains only the last 5 backups.
+ * Throttled to at most one write per AUTO_BACKUP_MIN_INTERVAL_MS unless forced.
+ * Prevents duplicate backups when state is identical to the latest backup.
+ */
+export function createAutoBackup(cleanData: KlabinDatabase, options: { force?: boolean } = {}): void {
   try {
+    const nowMs = Date.now();
+    if (!options.force && nowMs - lastAutoBackupAt < AUTO_BACKUP_MIN_INTERVAL_MS) {
+      return;
+    }
+    lastAutoBackupAt = nowMs;
+
     const clean = sanitizeDatabase(cleanData);
     const currentBackups = getAutoBackups();
     const currentCanonical = getCanonicalDatabaseString(clean);

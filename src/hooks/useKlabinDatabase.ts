@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { KlabinDatabase } from '../types';
-import { loadDatabase, saveDatabase, sanitizeDatabase } from '../utils/storage';
+import { loadDatabase, saveDatabase, sanitizeDatabase, createAutoBackup } from '../utils/storage';
 import { subscribeToFirestore, checkAndSeedFirestoreIfEmpty } from '../utils/firebaseSync';
 
 /**
@@ -18,11 +18,14 @@ export function useKlabinDatabase() {
     saveDatabase(database, { createBackup: false });
   }, [database]);
 
-  // Helper for applying user mutations with immediate auto-backup trigger
+  // Helper for applying user mutations. The state updater stays pure: the
+  // primary localStorage write is handled by the effect above on every change.
+  // Auto-backup is fired here (throttled inside createAutoBackup) and off the
+  // click, so a status toggle no longer serializes the whole DB synchronously.
   const mutateDatabase = (updater: (prev: KlabinDatabase) => KlabinDatabase) => {
     setDatabase((prev) => {
       const next = sanitizeDatabase(updater(prev));
-      saveDatabase(next, { createBackup: true });
+      setTimeout(() => createAutoBackup(next), 0);
       return next;
     });
   };

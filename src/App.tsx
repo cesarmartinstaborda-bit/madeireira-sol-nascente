@@ -325,7 +325,7 @@ export default function App() {
     }
 
     // Save a safety backup of current state BEFORE applying restore
-    createAutoBackup(database);
+    createAutoBackup(database, { force: true });
 
     const cleanDb = result.sanitizedDb;
 

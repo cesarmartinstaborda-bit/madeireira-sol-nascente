@@ -422,7 +422,7 @@ export const ConfiguracoesAjustes: React.FC<ConfiguracoesAjustesProps> = ({
       return;
     }
 
-    createAutoBackup(database);
+    createAutoBackup(database, { force: true });
     const updatedList = getAutoBackups();
     setAutoBackups(updatedList);
     setBackupFeedback({ type: 'success', message: 'Backup automático criado com sucesso.' });

@@ -230,9 +230,13 @@ export function getFreightGroupsByDriver(
     Motoristas?: MotoristaRecord[];
     appSettings?: AppSettings;
   },
-  searchTerm?: string
+  searchTerm?: string,
+  statusFilter?: 'PENDING' | 'PAID'
 ): DriverFreightGroup[] {
-  const records = getFreightRecords(database);
+  const allRecords = getFreightRecords(database);
+  const records = statusFilter
+    ? allRecords.filter((r) => r.freightStatus === statusFilter)
+    : allRecords;
 
   // Records that display under the same label must land in the same account,
   // even when only some of them still carry a usable driverId. A Carga left

@@ -24,6 +24,32 @@ export function useFreightHandlers({
   showToast,
   isDateLocked,
 }: UseFreightHandlersParams) {
+  // Resolves which Cargas/Vendas belong to a driver key. Matching by plate/name
+  // is case-insensitive so it stays consistent with freightUtils.findMatchedDriver
+  // (which normalizes to upper-case) — otherwise a header button could target a
+  // group whose records it never matches, and the click would do nothing.
+  const buildDriverMatcher = (driverKeyOrId: string) => {
+    const matchedMotorista = (database.Motoristas || []).find(
+      (m) => m.id === driverKeyOrId || `${m.name} / ${m.licensePlate}` === driverKeyOrId || m.licensePlate === driverKeyOrId
+    );
+    const targetDriverId = matchedMotorista?.id || driverKeyOrId;
+    const targetDriverName = matchedMotorista?.name || driverKeyOrId;
+    const wantedKey = (driverKeyOrId || '').trim().toUpperCase();
+    const wantedPlate = (matchedMotorista?.licensePlate || '').trim().toUpperCase();
+    const wantedName = (matchedMotorista?.name || '').trim().toUpperCase();
+
+    const isRecordMatch = (r: { driverId?: string; motoristaId?: string; driverPlate?: string; licensePlate?: string }) => {
+      if (targetDriverId && (r.driverId === targetDriverId || r.motoristaId === targetDriverId)) return true;
+      const key = (r.driverPlate || r.licensePlate || 'Motorista Não Identificado').trim().toUpperCase();
+      if (key === wantedKey) return true;
+      if (wantedPlate && key.includes(wantedPlate)) return true;
+      if (wantedName && key.includes(wantedName)) return true;
+      return false;
+    };
+
+    return { targetDriverName, isRecordMatch };
+  };
+
   // Pay all pending freights for a given motorista/plate (respecting locked months)
   const handlePayFreightForDriver = (driverKeyOrId: string, transactionKey?: string) => {
     const updatedCargasToSync: CargaRecord[] = [];
@@ -31,19 +57,9 @@ export function useFreightHandlers({
     let skippedLockedCount = 0;
     let paidCount = 0;
 
-    const matchedMotorista = (database.Motoristas || []).find(
-      (m) => m.id === driverKeyOrId || `${m.name} / ${m.licensePlate}` === driverKeyOrId || m.licensePlate === driverKeyOrId
-    );
-    const targetDriverId = matchedMotorista?.id || driverKeyOrId;
-    const targetDriverName = matchedMotorista?.name || driverKeyOrId;
+    const { targetDriverName, isRecordMatch } = buildDriverMatcher(driverKeyOrId);
 
     mutateDatabase((prev) => {
-      const isRecordMatch = (r: { driverId?: string; motoristaId?: string; driverPlate?: string; licensePlate?: string }) => {
-        if (targetDriverId && (r.driverId === targetDriverId || r.motoristaId === targetDriverId)) return true;
-        const key = (r.driverPlate || r.licensePlate || 'Motorista Não Identificado').trim();
-        return key === driverKeyOrId || (matchedMotorista && (key.includes(matchedMotorista.licensePlate) || key.includes(matchedMotorista.name)));
-      };
-
       const newCargas = prev.Cargas.map((c) => {
         if (isRecordMatch(c) && c.freightPayable !== 'NO' && (c.freightPayable as any) !== false && c.freightStatus !== 'PAID') {
           if (c.date && isDateLocked(c.date)) {
@@ -82,6 +98,10 @@ export function useFreightHandlers({
         return v;
       });
 
+      // Nothing changed: return the same reference so React skips the re-render
+      // and the persistence/backup cycle does not run for a no-op click.
+      if (paidCount === 0) return prev;
+
       return {
         ...prev,
         Cargas: newCargas,
@@ -110,19 +130,9 @@ export function useFreightHandlers({
     let skippedLockedCount = 0;
     let revertedCount = 0;
 
-    const matchedMotorista = (database.Motoristas || []).find(
-      (m) => m.id === driverKeyOrId || `${m.name} / ${m.licensePlate}` === driverKeyOrId || m.licensePlate === driverKeyOrId
-    );
-    const targetDriverId = matchedMotorista?.id || driverKeyOrId;
-    const targetDriverName = matchedMotorista?.name || driverKeyOrId;
+    const { targetDriverName, isRecordMatch } = buildDriverMatcher(driverKeyOrId);
 
     mutateDatabase((prev) => {
-      const isRecordMatch = (r: { driverId?: string; motoristaId?: string; driverPlate?: string; licensePlate?: string }) => {
-        if (targetDriverId && (r.driverId === targetDriverId || r.motoristaId === targetDriverId)) return true;
-        const key = (r.driverPlate || r.licensePlate || 'Motorista Não Identificado').trim();
-        return key === driverKeyOrId || (matchedMotorista && (key.includes(matchedMotorista.licensePlate) || key.includes(matchedMotorista.name)));
-      };
-
       const newCargas = prev.Cargas.map((c) => {
         if (isRecordMatch(c) && c.freightPayable !== 'NO' && (c.freightPayable as any) !== false && c.freightStatus === 'PAID') {
           if (c.date && isDateLocked(c.date)) {
@@ -159,6 +169,10 @@ export function useFreightHandlers({
         return v;
       });
 
+      // Nothing changed: return the same reference so React skips the re-render
+      // and the persistence/backup cycle does not run for a no-op click.
+      if (revertedCount === 0) return prev;
+
       return {
         ...prev,
         Cargas: newCargas,
@@ -175,6 +189,8 @@ export function useFreightHandlers({
       showToast(`Pagamento de frete revertido para PENDENTE (${targetDriverName}).`);
     } else if (skippedLockedCount > 0) {
       showToast(`Todos os fretes pagos pertencem a meses trancados no Fechamento de Ciclo.`);
+    } else {
+      showToast(`Nenhum frete quitado para reverter.`);
     }
   };
 

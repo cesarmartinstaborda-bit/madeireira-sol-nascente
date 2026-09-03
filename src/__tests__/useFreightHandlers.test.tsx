@@ -70,4 +70,46 @@ describe('useFreightHandlers', () => {
     expect(firebase.upsert).not.toHaveBeenCalled();
     expect(h.showToast).toHaveBeenCalledWith(expect.stringContaining('mês trancado'));
   });
+
+  it('reverter sem nenhum frete quitado: não muda dados, não sincroniza e avisa', () => {
+    const h = setup(); // base tem tudo PENDING
+    const before = JSON.stringify(h.getDatabase());
+    act(() => h.result.current.handleRevertFreightForDriver('m1'));
+    expect(JSON.stringify(h.getDatabase())).toBe(before);
+    expect(firebase.upsert).not.toHaveBeenCalled();
+    expect(h.showToast).toHaveBeenCalledWith('Nenhum frete quitado para reverter.');
+  });
+
+  it('quitar sem nenhum frete pendente: não muda dados, não sincroniza e avisa', () => {
+    let database = baseDatabase();
+    database.Cargas = database.Cargas.map((c: any) => ({ ...c, freightStatus: 'PAID' }));
+    database.Vendas = database.Vendas.map((v: any) => ({ ...v, freightStatus: 'PAID' }));
+    const before = JSON.stringify(database);
+    const mutateDatabase = vi.fn((u: (p: any) => any) => { database = u(database); });
+    const showToast = vi.fn();
+    const { result } = renderHook(() =>
+      useFreightHandlers({ database, mutateDatabase, showToast, isDateLocked: () => false })
+    );
+    act(() => result.current.handlePayFreightForDriver('m1'));
+    expect(JSON.stringify(database)).toBe(before);
+    expect(firebase.upsert).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith('Nenhum frete pendente para quitar.');
+  });
+
+  it('casa o motorista mesmo com a placa em caixa diferente na carga', () => {
+    let database = baseDatabase();
+    // carga sem driverId, placa em minúsculas e como texto "Nome / PLACA"
+    database.Cargas = [
+      { id: 'cx', date: '2026-08-15', driverPlate: 'joão / abc-1234', freightPayable: 'YES', freightCost: 120, freightStatus: 'PAID', freightPaidAt: '2026-08-16' },
+    ];
+    database.Vendas = [];
+    const mutateDatabase = vi.fn((updater: (p: any) => any) => { database = updater(database); });
+    const showToast = vi.fn();
+    const { result } = renderHook(() =>
+      useFreightHandlers({ database, mutateDatabase, showToast, isDateLocked: () => false })
+    );
+    act(() => result.current.handleRevertFreightForDriver('João / ABC-1234'));
+    expect(database.Cargas[0]).toMatchObject({ freightStatus: 'PENDING', freightPaidAt: undefined });
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('revertido para PENDENTE'));
+  });
 });
