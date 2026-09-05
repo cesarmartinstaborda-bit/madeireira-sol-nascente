@@ -1,0 +1,40 @@
+name: Build RPM
+
+on:
+  push:
+    branches:
+      - madeireira-sol-nascente-rpm
+  workflow_dispatch:
+
+jobs:
+  build-rpm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript check
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      - name: Build RPM
+        run: npm run dist:rpm
+
+      - name: Upload RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: madeireira-sol-nascente-rpm
+          path: release/*.rpm
+          if-no-files-found: error
