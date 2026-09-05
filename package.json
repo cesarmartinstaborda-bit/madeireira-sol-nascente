@@ -11,8 +11,10 @@
     "clean": "rm -rf dist release",
     "lint": "tsc --noEmit",
     "electron:dev": "concurrently \"npm run dev\" \"npx electron .\"",
-    "electron:build": "npm run build && electron-builder --linux AppImage",
-    "dist:linux": "npm run build && electron-builder --linux AppImage",
+    "electron:build": "npm run build && electron-builder --linux rpm",
+    "dist:linux": "npm run build && electron-builder --linux rpm",
+    "dist:rpm": "npm run build && electron-builder --linux rpm",
+    "dist:appimage": "npm run build && electron-builder --linux AppImage",
     "test": "vitest run"
   },
   "dependencies": {
@@ -60,10 +62,17 @@
     },
     "linux": {
       "target": [
-        "AppImage"
+        "rpm"
       ],
       "icon": "assets/icon.png",
-      "category": "Office"
+      "category": "Office",
+      "synopsis": "Gestão operacional da Madeireira Sol Nascente",
+      "description": "Sistema desktop para gestão operacional da Madeireira Sol Nascente",
+      "vendor": "Madeireira Sol Nascente"
+    },
+    "rpm": {
+      "compression": "xz",
+      "packageCategory": "Office"
     }
   },
   "allowScripts": {
