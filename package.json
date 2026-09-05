@@ -11,11 +11,13 @@
     "clean": "rm -rf dist release",
     "lint": "tsc --noEmit",
     "electron:dev": "concurrently \"npm run dev\" \"npx electron .\"",
-    "electron:build": "npm run build && electron-builder --linux rpm",
-    "dist:linux": "npm run build && electron-builder --linux rpm",
-    "dist:rpm": "npm run build && electron-builder --linux rpm",
+    "electron:build": "npm run dist:rpm",
+    "dist:linux": "npm run dist:rpm",
+    "dist:rpm": "npm run build && node scripts/build-rpm.cjs",
     "dist:appimage": "npm run build && electron-builder --linux AppImage",
-    "test": "vitest run"
+    "test": "vitest run",
+    "dist:rpm:fedora": "bash scripts/build-rpm-fedora.sh",
+    "verify:rpm:fedora": "bash scripts/verify-rpm-fedora.sh"
   },
   "dependencies": {
     "firebase": "^12.18.0",
@@ -34,7 +36,7 @@
     "@types/react-dom": "^19.2.5",
     "@vitejs/plugin-react": "^5.0.4",
     "concurrently": "^9.1.2",
-    "electron": "^33.0.0",
+    "electron": "44.2.0",
     "electron-builder": "^25.1.8",
     "jsdom": "^26.1.0",
     "tailwindcss": "^4.1.14",
@@ -53,7 +55,8 @@
       "dist/**/*",
       "electron.js",
       "preload.js",
-      "package.json"
+      "package.json",
+      "assets/icon.png"
     ],
     "asar": true,
     "win": {
@@ -68,18 +71,34 @@
       "category": "Office",
       "synopsis": "Gestão operacional da Madeireira Sol Nascente",
       "description": "Sistema desktop para gestão operacional da Madeireira Sol Nascente",
-      "vendor": "Madeireira Sol Nascente"
+      "vendor": "Madeireira Sol Nascente",
+      "maintainer": "Madeireira Sol Nascente",
+      "artifactName": "Madeireira-Sol-Nascente-${version}-${arch}.${ext}"
     },
     "rpm": {
       "compression": "xz",
-      "packageCategory": "Office"
+      "packageCategory": "Office",
+      "depends": [
+        "gtk3",
+        "libnotify",
+        "nss",
+        "libXScrnSaver",
+        "libXtst",
+        "xdg-utils",
+        "at-spi2-core",
+        "libuuid",
+        "alsa-lib",
+        "mesa-libgbm",
+        "libsecret"
+      ]
     }
   },
   "allowScripts": {
-    "electron@33.4.11": true,
     "@firebase/util@1.15.3": true,
     "core-js@3.50.0": true,
     "esbuild@0.25.12": true,
     "protobufjs@7.6.5": true
-  }
+  },
+  "homepage": "https://github.com/cesarmartinstaborda-bit/madeireira-sol-nascente",
+  "author": "Madeireira Sol Nascente"
 }

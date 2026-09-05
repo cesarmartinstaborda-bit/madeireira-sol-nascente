@@ -4,6 +4,17 @@ const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
 
+// Preserve Electron 33's Linux window/focus behavior and GTK dependency.
+// Newer Electron defaults to native Wayland and GTK 4 on GNOME.
+if (process.platform === 'linux') {
+  if (!app.commandLine.hasSwitch('ozone-platform')) {
+    app.commandLine.appendSwitch('ozone-platform', 'x11');
+  }
+  if (!app.commandLine.hasSwitch('gtk-version')) {
+    app.commandLine.appendSwitch('gtk-version', '3');
+  }
+}
+
 // .env is optional — GOOGLE_OAUTH_CLIENT_SECRET can also be exported in the shell
 // before launching the app (e.g. `GOOGLE_OAUTH_CLIENT_SECRET=... npm run electron:dev`).
 try {
