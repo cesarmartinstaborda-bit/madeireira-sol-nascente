@@ -1,40 +1,28 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import {
-  TableType,
-  ResumoRecord,
-  CaixaRecord,
-  AppSettings,
-} from './types';
-import {
-  saveDatabase,
-  exportTableCSV,
-  validateAndSanitizeBackupJSON,
-  createAutoBackup,
-} from './utils/storage';
-import {
-  syncFirestoreSettings,
-  restoreFirestoreAuthoritatively,
-} from './utils/firebaseSync';
-import { useKlabinDatabase } from './hooks/useKlabinDatabase';
-import { useProdutoHandlers } from './hooks/useProdutoHandlers';
-import { useMotoristaHandlers } from './hooks/useMotoristaHandlers';
-import { useFreightHandlers } from './hooks/useFreightHandlers';
-import { useCargaDepositoHandlers } from './hooks/useCargaDepositoHandlers';
-import { useClienteVendaHandlers } from './hooks/useClienteVendaHandlers';
-import { isMonthLocked, formatMonthYearBR } from './utils/formatters';
-import { getFreightRecords, getPendingFreightTotal, getPaidFreightTotal, getTotalFreight } from './utils/freightUtils';
-import { calcKlabinBalance } from './utils/klabinBalance';
-import { Sidebar } from './components/Sidebar';
+import { useEffect, useMemo, useState } from 'react';
+import { ClientesProdutosDashboard } from './components/ClientesProdutosDashboard';
+import { ConfiguracoesAjustes } from './components/ConfiguracoesAjustes';
+import { ConfirmModal } from './components/ConfirmModal';
+import { DashboardOverview } from './components/DashboardOverview';
 import { Header } from './components/Header';
+import { KlabinDashboard } from './components/KlabinDashboard';
+import { RecordModal } from './components/RecordModal';
+import { Sidebar } from './components/Sidebar';
+import { TableCaixa } from './components/TableCaixa';
 import { TableMotoristas } from './components/TableMotoristas';
 import { TableResumo } from './components/TableResumo';
-import { TableCaixa } from './components/TableCaixa';
-import { DashboardOverview } from './components/DashboardOverview';
-import { ConfiguracoesAjustes } from './components/ConfiguracoesAjustes';
-import { KlabinDashboard } from './components/KlabinDashboard';
-import { ClientesProdutosDashboard } from './components/ClientesProdutosDashboard';
-import { RecordModal } from './components/RecordModal';
-import { ConfirmModal } from './components/ConfirmModal';
+import { useCargaDepositoHandlers } from './hooks/useCargaDepositoHandlers';
+import { useClienteVendaHandlers } from './hooks/useClienteVendaHandlers';
+import { useFreightHandlers } from './hooks/useFreightHandlers';
+import { useKlabinDatabase } from './hooks/useKlabinDatabase';
+import { useMotoristaHandlers } from './hooks/useMotoristaHandlers';
+import { useProdutoHandlers } from './hooks/useProdutoHandlers';
+import { AppSettings, TableType } from './types';
+import { computeDashboardMetrics } from './utils/dashboard/computedMetrics';
+import { exportActiveTable } from './utils/exports/exportActiveTable';
+import { restoreFirestoreAuthoritatively, syncFirestoreSettings, } from './utils/firebaseSync';
+import { formatMonthYearBR, isMonthLocked } from './utils/formatters';
+import { mergeAppSettings } from './utils/settings/mergeAppSettings';
+import { createAutoBackup, saveDatabase, validateAndSanitizeBackupJSON } from './utils/storage';
 
 export default function App() {
   const { database, setDatabase, mutateDatabase } = useKlabinDatabase();
@@ -127,72 +115,7 @@ export default function App() {
 
   // DYNAMIC COMPUTED METRICS
   const computedMetrics = useMemo(() => {
-    const totalVolumeTons = database.Cargas.reduce(
-      (acc, c) => acc + (Number(c.quantityTons) || 0),
-      0
-    );
-
-    const totalComprasVal = database.Cargas.reduce(
-      (acc, c) => acc + (Number(c.totalValue) || 0),
-      0
-    );
-
-    const { totalDepositos, totalAbatido, saldo: saldoLiquidoKlabin } = calcKlabinBalance({
-      cargas: database.Cargas,
-      depositos: database.Depositos_Klabin,
-    });
-    const freightRatePerTon = database.appSettings?.freightRatePerTon || 15;
-
-    const allFreightRecords = getFreightRecords(database);
-    const totalFreteVal = getTotalFreight(database);
-
-    const totalFreteTons = allFreightRecords.reduce(
-      (acc, r) => acc + (Number(r.tons) || 0),
-      0
-    );
-
-    const avgFretePerTon = totalFreteTons > 0 ? totalFreteVal / totalFreteTons : freightRatePerTon;
-
-    const resumoRecords: ResumoRecord[] = [
-      { id: 'res-dyn-1', metricName: 'Total Volume Cargas (Toneladas)', metricValue: Number(totalVolumeTons.toFixed(2)) },
-      { id: 'res-dyn-2', metricName: 'Valor Total Compras de Cargas (R$)', metricValue: Number(totalComprasVal.toFixed(2)) },
-      { id: 'res-dyn-3', metricName: 'Total Abatido do Saldo Klabin (R$)', metricValue: Number(totalAbatido.toFixed(2)) },
-      { id: 'res-dyn-4', metricName: 'Total Depósitos Recebidos Klabin (R$)', metricValue: Number(totalDepositos.toFixed(2)) },
-      { id: 'res-dyn-5', metricName: 'Saldo Líquido Disponível Klabin (R$)', metricValue: Number(saldoLiquidoKlabin.toFixed(2)) },
-      { id: 'res-dyn-6', metricName: 'Custo Total de Fretes (R$)', metricValue: Number(totalFreteVal.toFixed(2)) },
-      { id: 'res-dyn-7', metricName: 'Custo Médio de Frete / Tonelada (R$)', metricValue: Number(avgFretePerTon.toFixed(2)) },
-    ];
-
-    const caixaRecords: CaixaRecord[] = [
-      {
-        id: 'cx-dyn-1',
-        balanceControlKlabin: 'Adiantamento Depósitos Klabin (Entrada de Caixa)',
-        value: Number(totalDepositos.toFixed(2)),
-      },
-      {
-        id: 'cx-dyn-2',
-        balanceControlKlabin: 'Abatimento Saldo Cargas Fornecidas Klabin',
-        value: -Number(totalAbatido.toFixed(2)),
-      },
-      {
-        id: 'cx-dyn-3',
-        balanceControlKlabin: 'Saldo Atualizado de Caixa Operacional Klabin',
-        value: Number(saldoLiquidoKlabin.toFixed(2)),
-      },
-    ];
-
-    return {
-      totalVolumeTons,
-      totalComprasVal,
-      totalAbatido,
-      totalDepositos,
-      saldoLiquidoKlabin,
-      totalFreteVal,
-      totalFreteTons,
-      avgFretePerTon,
-      resumoRecords,
-      caixaRecords,
-    };
+    return computeDashboardMetrics(database);
   }, [
     database.Cargas,
     database.Depositos_Klabin,
@@ -346,97 +269,7 @@ export default function App() {
   const handleExportCSV = () => {
     if (activeTable === 'Dashboard') return;
 
-    switch (activeTable) {
-      case 'Klabin':
-        if (klabinSubTab === 'DEPOSITOS') {
-          exportTableCSV('Depositos_Klabin', database.Depositos_Klabin, [
-            { key: 'date', label: 'Data Depósito' },
-            { key: 'value', label: 'Valor Depósito (R$)' },
-            { key: 'notes', label: 'Observações / Comprovante' },
-          ]);
-        } else {
-          exportTableCSV('Cargas', database.Cargas, [
-            { key: 'date', label: 'Data Compra' },
-            { key: 'supplier', label: 'Fornecedor' },
-            { key: 'product', label: 'Produto' },
-            { key: 'quantityTons', label: 'Quantidade (Ton)' },
-            { key: 'valuePerTon', label: 'Valor/Ton (R$)' },
-            { key: 'totalValue', label: 'Valor Total (R$)' },
-            { key: 'driverPlate', label: 'Motorista / Placa' },
-            { key: 'freightPayable', label: 'Frete a Pagar?' },
-            { key: 'freightCost', label: 'Custo Frete (R$)' },
-            { key: 'deductFromBalance', label: 'Abater do Saldo?' },
-            { key: 'notes', label: 'Observações' },
-          ]);
-        }
-        break;
-      case 'Cargas':
-        exportTableCSV('Cargas', database.Cargas, [
-          { key: 'date', label: 'Data Compra' },
-          { key: 'supplier', label: 'Fornecedor' },
-          { key: 'product', label: 'Produto' },
-          { key: 'quantityTons', label: 'Quantidade (Ton)' },
-          { key: 'valuePerTon', label: 'Valor/Ton (R$)' },
-          { key: 'totalValue', label: 'Valor Total (R$)' },
-          { key: 'driverPlate', label: 'Motorista / Placa' },
-          { key: 'freightPayable', label: 'Frete a Pagar?' },
-          { key: 'freightCost', label: 'Custo Frete (R$)' },
-          { key: 'deductFromBalance', label: 'Abater do Saldo?' },
-          { key: 'notes', label: 'Observações' },
-        ]);
-        break;
-      case 'Depositos_Klabin':
-        exportTableCSV('Depositos_Klabin', database.Depositos_Klabin, [
-          { key: 'date', label: 'Data Depósito' },
-          { key: 'value', label: 'Valor Depósito (R$)' },
-          { key: 'notes', label: 'Observações / Comprovante' },
-        ]);
-        break;
-      case 'Motoristas':
-        exportTableCSV('Motoristas', database.Motoristas || [], [
-          { key: 'name', label: 'Nome Motorista' },
-          { key: 'licensePlate', label: 'Placa Veículo' },
-          { key: 'trailerPlate', label: 'Placa Reboque' },
-          { key: 'phone', label: 'Telefone' },
-          { key: 'pixKey', label: 'Chave PIX' },
-          { key: 'status', label: 'Status' },
-        ]);
-        break;
-      case 'Clientes_Produtos':
-      case 'Gestao_Clientes':
-      case 'Vendas':
-        exportTableCSV('Vendas', database.Vendas || [], [
-          { key: 'date', label: 'Data Venda' },
-          { key: 'clientName', label: 'Nome Cliente' },
-          { key: 'product', label: 'Produto' },
-          { key: 'quantity', label: 'Quantidade' },
-          { key: 'unitPrice', label: 'Preço Unitário (R$)' },
-          { key: 'totalValue', label: 'Valor Total (R$)' },
-          { key: 'status', label: 'Status' },
-          { key: 'notes', label: 'Observações' },
-        ]);
-        break;
-      case 'Produtos':
-        exportTableCSV('Produtos', database.Produtos || [], [
-          { key: 'name', label: 'Nome Produto' },
-          { key: 'unitOfMeasure', label: 'Unidade de Medida' },
-          { key: 'referencePrice', label: 'Preço de Referência' },
-          { key: 'status', label: 'Status' },
-        ]);
-        break;
-      case 'Resumo':
-        exportTableCSV('Resumo', computedMetrics.resumoRecords, [
-          { key: 'metricName', label: 'Nome da Métrica' },
-          { key: 'metricValue', label: 'Valor da Métrica' },
-        ]);
-        break;
-      case 'Caixa':
-        exportTableCSV('Caixa', computedMetrics.caixaRecords, [
-          { key: 'balanceControlKlabin', label: 'Controle de Saldo Klabin' },
-          { key: 'value', label: 'Valor (R$)' },
-        ]);
-        break;
-    }
+    exportActiveTable(activeTable, klabinSubTab, database, computedMetrics);
     showToast(`Arquivo CSV exportado com sucesso.`);
   };
 
@@ -455,76 +288,14 @@ export default function App() {
 
   const handleUpdateAppSettings = (newSettingsPartial: Partial<AppSettings>) => {
     mutateDatabase((prev) => {
-      const merged: AppSettings = {
-        freightRatePerTon: newSettingsPartial.freightRatePerTon !== undefined
-          ? newSettingsPartial.freightRatePerTon
-          : (prev.appSettings?.freightRatePerTon || 15),
-        company: {
-          name: 'Madeireira Sol Nascente',
-          ...(prev.appSettings?.company || {}),
-          ...(newSettingsPartial.company || {}),
-        },
-        klabin: {
-          defaultDeductFromBalance: true,
-          ...(prev.appSettings?.klabin || {}),
-          ...(newSettingsPartial.klabin || {}),
-        },
-        freight: {
-          defaultCargoFreightPayable: true,
-          defaultSaleFreightPayable: false,
-          ...(prev.appSettings?.freight || {}),
-          ...(newSettingsPartial.freight || {}),
-        },
-        cycles: {
-          lockedMonths: [],
-          ...(prev.appSettings?.cycles || {}),
-          ...(newSettingsPartial.cycles || {}),
-        },
-        companyName:
-          newSettingsPartial.company?.name ||
-          newSettingsPartial.companyName ||
-          prev.appSettings?.company?.name ||
-          prev.appSettings?.companyName ||
-          'Madeireira Sol Nascente',
-      };
+      const merged = mergeAppSettings(prev.appSettings, newSettingsPartial);
       return {
         ...prev,
         appSettings: merged,
       };
     });
 
-    const updatedAppSettings: AppSettings = {
-      freightRatePerTon: newSettingsPartial.freightRatePerTon !== undefined
-        ? newSettingsPartial.freightRatePerTon
-        : (database.appSettings?.freightRatePerTon || 15),
-      company: {
-        name: 'Madeireira Sol Nascente',
-        ...(database.appSettings?.company || {}),
-        ...(newSettingsPartial.company || {}),
-      },
-      klabin: {
-        defaultDeductFromBalance: true,
-        ...(database.appSettings?.klabin || {}),
-        ...(newSettingsPartial.klabin || {}),
-      },
-      freight: {
-        defaultCargoFreightPayable: true,
-        defaultSaleFreightPayable: false,
-        ...(database.appSettings?.freight || {}),
-        ...(newSettingsPartial.freight || {}),
-      },
-      cycles: {
-        lockedMonths: [],
-        ...(database.appSettings?.cycles || {}),
-        ...(newSettingsPartial.cycles || {}),
-      },
-      companyName:
-        newSettingsPartial.company?.name ||
-        newSettingsPartial.companyName ||
-        database.appSettings?.company?.name ||
-        database.appSettings?.companyName ||
-        'Madeireira Sol Nascente',
-    };
+    const updatedAppSettings = mergeAppSettings(database.appSettings, newSettingsPartial);
 
     syncFirestoreSettings({
       appSettings: updatedAppSettings,

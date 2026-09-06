@@ -1,387 +1,56 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { User } from 'firebase/auth';
-import {
-  initAuth,
-  googleSignIn,
-  googleSignOut,
-  getCurrentGoogleUser,
-} from '../utils/googleAuth';
-import {
-  listDriveFiles,
-  uploadBackupToDrive,
-  uploadFileToDrive,
-  downloadDriveFileText,
-  deleteDriveFile,
-  formatDriveFileSize,
-  DRIVE_FOLDERS,
-  DriveFileItem,
-} from '../utils/googleDrive';
-import { generateConsolidatedReportPdf } from '../utils/consolidatedReportPdf';
-import { GoogleSignInButton } from './GoogleSignInButton';
-import { KlabinDatabase } from '../types';
-import { generateCSVString, validateAndSanitizeBackupJSON } from '../utils/storage';
-import {
-  HardDrive,
-  Upload,
-  Download,
-  Trash2,
-  RefreshCw,
-  Search,
-  ExternalLink,
-  FileText,
-  CheckCircle2,
-  AlertTriangle,
-  FolderSync,
-  FileJson,
-  FileSpreadsheet,
-  File,
-  ShieldCheck,
-  Plus,
-  ArrowUpRight,
-  FileBarChart,
-} from 'lucide-react';
+import { AlertTriangle, ExternalLink, FileBarChart, FileJson, FileSpreadsheet, FileText, FolderSync, HardDrive, RefreshCw, Search, ShieldCheck, Trash2, Upload } from 'lucide-react';
+import React from 'react';
 import { formatDateTimeBR } from '../utils/formatters';
+import type { DriveFileItem } from '../utils/googleDrive';
+import { formatDriveFileSize } from '../utils/googleDrive';
+import { useDriveExplorer, type GoogleDriveExplorerProps } from './drive/useDriveExplorer';
+import { GoogleSignInButton } from './GoogleSignInButton';
 
-interface GoogleDriveExplorerProps {
-  database: KlabinDatabase;
-  onRestoreDatabase: (restoredDb: KlabinDatabase) => void;
-  onShowToast: (message: string) => void;
-}
 
-export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
-  database,
-  onRestoreDatabase,
-  onShowToast,
-}) => {
-  const [user, setUser] = useState<User | null>(() => getCurrentGoogleUser());
-  const [token, setToken] = useState<string | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(false);
-  const [files, setFiles] = useState<DriveFileItem[]>([]);
-  const [isLoadingFiles, setIsLoadingFiles] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isBackingUp, setIsBackingUp] = useState<boolean>(false);
-  const [isExportingCSVs, setIsExportingCSVs] = useState<boolean>(false);
-  const [isGeneratingReport, setIsGeneratingReport] = useState<boolean>(false);
-  const [isUploadingCustom, setIsUploadingCustom] = useState<boolean>(false);
-  const [deleteConfirmTarget, setDeleteConfirmTarget] = useState<DriveFileItem | null>(null);
-  const [restoreConfirmTarget, setRestoreConfirmTarget] = useState<DriveFileItem | null>(null);
-  const [appFolderId, setAppFolderId] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'ALL' | 'BACKUPS' | 'DOCS'>('ALL');
+const getFileIcon = (file: DriveFileItem) => {
+  if (file.name.endsWith('.json') || file.mimeType.includes('json')) {
+    return <FileJson className="w-5 h-5 text-amber-400 flex-shrink-0" />;
+  }
+  if (file.name.endsWith('.csv') || file.mimeType.includes('csv') || file.mimeType.includes('spreadsheet')) {
+    return <FileSpreadsheet className="w-5 h-5 text-emerald-400 flex-shrink-0" />;
+  }
+  return <FileText className="w-5 h-5 text-blue-400 flex-shrink-0" />;
+};
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Initialize Auth listener on mount
-  useEffect(() => {
-    const unsubscribe = initAuth(
-      (authUser, authToken) => {
-        setUser(authUser);
-        setToken(authToken);
-      },
-      () => {
-        setUser(null);
-        setToken(null);
-      }
-    );
-    return () => unsubscribe();
-  }, []);
 
-  // Fetch files whenever user is authenticated
-  useEffect(() => {
-    if (user && token) {
-      loadDriveData();
-    } else {
-      setFiles([]);
-      setAppFolderId(null);
-    }
-  }, [user, token]);
-
-  const loadDriveData = async () => {
-    setIsLoadingFiles(true);
-    try {
-      setAppFolderId(DRIVE_FOLDERS.backups);
-
-      // Cloud files span the backup and generated-report destinations.
-      const [backupFiles, reportFiles] = await Promise.all([
-        listDriveFiles({ folderId: DRIVE_FOLDERS.backups }),
-        listDriveFiles({ folderId: DRIVE_FOLDERS.desktop }),
-      ]);
-      const filesById = new Map(
-        [...backupFiles, ...reportFiles].map((file) => [file.id, file])
-      );
-      setFiles(
-        [...filesById.values()].sort((a, b) =>
-          (b.modifiedTime || '').localeCompare(a.modifiedTime || '')
-        )
-      );
-    } catch (err: any) {
-      console.error('[GoogleDrive] Erro ao carregar arquivos:', err);
-      onShowToast(`Erro no Google Drive: ${err.message || 'Falha ao sincronizar'}`);
-    } finally {
-      setIsLoadingFiles(false);
-    }
-  };
-
-  const handleSignIn = async () => {
-    setIsAuthLoading(true);
-    try {
-      const result = await googleSignIn();
-      if (result) {
-        setUser(result.user);
-        setToken(result.accessToken);
-        onShowToast(`Conectado ao Google Drive como ${result.user.email}`);
-      }
-    } catch (err: any) {
-      if (
-        err?.code !== 'auth/popup-closed-by-user' &&
-        err?.code !== 'auth/cancelled-popup-request'
-      ) {
-        console.warn('[GoogleDrive] Aviso no login:', err);
-        onShowToast(`Falha na autenticação: ${err.message || 'Verifique sua conexão'}`);
-      }
-    } finally {
-      setIsAuthLoading(false);
-    }
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await googleSignOut();
-      setUser(null);
-      setToken(null);
-      setFiles([]);
-      onShowToast('Desconectado do Google Drive.');
-    } catch (err: any) {
-      console.error('[GoogleDrive] Erro ao desconectar:', err);
-    }
-  };
-
-  // Perform full database backup to Drive
-  const handleCreateCloudBackup = async () => {
-    if (!user || !token) {
-      onShowToast('Conecte sua conta Google primeiro.');
-      return;
-    }
-
-    setIsBackingUp(true);
-    try {
-      const created = await uploadBackupToDrive(database);
-      onShowToast(`Backup salvo com sucesso no Google Drive: ${created.name}`);
-      await loadDriveData();
-    } catch (err: any) {
-      console.error('[GoogleDrive] Erro no backup:', err);
-      onShowToast(`Erro ao salvar backup: ${err.message || 'Falha na conexão'}`);
-    } finally {
-      setIsBackingUp(false);
-    }
-  };
-
-  // Export operational CSV tables to Drive
-  const handleExportCSVsToDrive = async () => {
-    if (!user || !token) {
-      onShowToast('Conecte sua conta Google primeiro.');
-      return;
-    }
-
-    setIsExportingCSVs(true);
-    try {
-      const folderId = DRIVE_FOLDERS.backups;
-      const now = new Date().toISOString().slice(0, 10);
-
-      const tablesToExport: { name: string; csv: string }[] = [
-        {
-          name: `Cargas_Klabin_${now}.csv`,
-          csv: generateCSVString(database.Cargas || [], [
-            { key: 'date', label: 'Data' },
-            { key: 'invoiceNumber', label: 'NF' },
-            { key: 'driverPlate', label: 'Motorista' },
-            { key: 'quantityTons', label: 'Quantidade (Ton)' },
-            { key: 'totalValue', label: 'Valor Madeira (R$)' },
-            { key: 'freightCost', label: 'Valor Frete (R$)' },
-            { key: 'freightStatus', label: 'Status' },
-          ]),
-        },
-        {
-          name: `Depositos_Klabin_${now}.csv`,
-          csv: generateCSVString(database.Depositos_Klabin || [], [
-            { key: 'date', label: 'Data' },
-            { key: 'value', label: 'Valor (R$)' },
-            { key: 'notes', label: 'Observações / Comprovante' },
-          ]),
-        },
-        {
-          name: `Vendas_Clientes_${now}.csv`,
-          csv: generateCSVString(database.Vendas || [], [
-            { key: 'date', label: 'Data' },
-            { key: 'clientName', label: 'Cliente' },
-            { key: 'product', label: 'Produto' },
-            { key: 'quantity', label: 'Quantidade' },
-            { key: 'unitPrice', label: 'Preço Unitário (R$)' },
-            { key: 'totalValue', label: 'Valor Total (R$)' },
-            { key: 'status', label: 'Status Pagamento' },
-          ]),
-        },
-        {
-          name: `Motoristas_Fretes_${now}.csv`,
-          csv: generateCSVString(database.Motoristas || [], [
-            { key: 'name', label: 'Nome' },
-            { key: 'licensePlate', label: 'Placa' },
-            { key: 'phone', label: 'Telefone' },
-            { key: 'status', label: 'Status' },
-          ]),
-        },
-        {
-          name: `Catalogo_Produtos_${now}.csv`,
-          csv: generateCSVString(database.Produtos || [], [
-            { key: 'name', label: 'Nome do Produto' },
-            { key: 'unitOfMeasure', label: 'Unidade' },
-            { key: 'referencePrice', label: 'Preço Padrão (R$)' },
-            { key: 'status', label: 'Status' },
-          ]),
-        },
-      ];
-
-      for (const table of tablesToExport) {
-        await uploadFileToDrive({
-          name: table.name,
-          content: table.csv,
-          mimeType: 'text/csv; charset=UTF-8',
-          folderId,
-          description: `Planilha CSV gerada pelo sistema em ${now}`,
-        });
-      }
-
-      onShowToast(`${tablesToExport.length} tabelas CSV exportadas para o Google Drive!`);
-      await loadDriveData();
-    } catch (err: any) {
-      console.error('[GoogleDrive] Erro ao exportar CSVs:', err);
-      onShowToast(`Erro ao exportar planilhas: ${err.message}`);
-    } finally {
-      setIsExportingCSVs(false);
-    }
-  };
-
-  // Generate a single consolidated PDF report (executive summary + all tables) and upload it to Drive
-  const handleGenerateConsolidatedReport = async () => {
-    if (!user || !token) {
-      onShowToast('Conecte sua conta Google primeiro.');
-      return;
-    }
-
-    setIsGeneratingReport(true);
-    try {
-      const { blob, filename } = generateConsolidatedReportPdf(database);
-      const created = await uploadFileToDrive({
-        name: filename,
-        content: blob,
-        mimeType: 'application/pdf',
-        folderId: DRIVE_FOLDERS.desktop,
-        description: 'Relatório consolidado (resumo executivo + tabelas) gerado pelo sistema',
-      });
-
-      onShowToast(`Relatório consolidado "${created.name || filename}" salvo no Google Drive!`);
-      await loadDriveData();
-    } catch (err: any) {
-      console.error('[GoogleDrive] Erro ao gerar relatório consolidado:', err);
-      onShowToast(`Erro ao gerar relatório: ${err.message || 'Falha na conexão'}`);
-    } finally {
-      setIsGeneratingReport(false);
-    }
-  };
-
-  // Upload arbitrary custom file (receipt, invoice, document)
-  const handleCustomFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user || !token) return;
-
-    setIsUploadingCustom(true);
-    try {
-      const folderId = DRIVE_FOLDERS.backups;
-      await uploadFileToDrive({
-        name: file.name,
-        content: file,
-        mimeType: file.type || 'application/octet-stream',
-        folderId,
-        description: `Arquivo anexado via sistema Madeireira Sol Nascente`,
-      });
-
-      onShowToast(`Arquivo "${file.name}" enviado com sucesso para o Google Drive!`);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      await loadDriveData();
-    } catch (err: any) {
-      console.error('[GoogleDrive] Erro ao subir arquivo:', err);
-      onShowToast(`Erro no upload: ${err.message}`);
-    } finally {
-      setIsUploadingCustom(false);
-    }
-  };
-
-  // Restore database from Drive JSON file
-  const handleConfirmRestore = async () => {
-    if (!restoreConfirmTarget) return;
-
-    try {
-      const jsonText = await downloadDriveFileText(restoreConfirmTarget.id);
-      const parsed = JSON.parse(jsonText);
-      const dbPayload = parsed.database || parsed;
-
-      const validation = validateAndSanitizeBackupJSON(dbPayload);
-      if (!validation.isValid || !validation.sanitizedDb) {
-        onShowToast(`Falha ao restaurar backup: ${validation.errorMessage || 'Formato de arquivo inválido.'}`);
-        return;
-      }
-      onRestoreDatabase(validation.sanitizedDb);
-      onShowToast(`Banco de dados restaurado com sucesso a partir de "${restoreConfirmTarget.name}"!`);
-      setRestoreConfirmTarget(null);
-    } catch (err: any) {
-      console.error('[GoogleDrive] Erro ao restaurar:', err);
-      onShowToast(`Falha ao restaurar backup: ${err.message}`);
-    }
-  };
-
-  // Delete file from Drive (with user confirmation requirement)
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirmTarget) return;
-
-    try {
-      await deleteDriveFile(deleteConfirmTarget.id);
-      onShowToast(`Arquivo "${deleteConfirmTarget.name}" removido do Google Drive.`);
-      setFiles((prev) => prev.filter((f) => f.id !== deleteConfirmTarget.id));
-      setDeleteConfirmTarget(null);
-    } catch (err: any) {
-      console.error('[GoogleDrive] Erro ao excluir:', err);
-      onShowToast(`Erro ao excluir: ${err.message}`);
-    }
-  };
-
-  // Filter files
-  const filteredFiles = files.filter((file) => {
-    const matchesSearch =
-      !searchQuery ||
-      file.name.toLowerCase().includes(searchQuery.toLowerCase());
-
-    if (!matchesSearch) return false;
-
-    if (activeFilter === 'BACKUPS') {
-      return file.name.endsWith('.json') || file.mimeType.includes('json');
-    }
-    if (activeFilter === 'DOCS') {
-      return !file.name.endsWith('.json') && !file.mimeType.includes('json');
-    }
-    return true;
-  });
-
-  const getFileIcon = (file: DriveFileItem) => {
-    if (file.name.endsWith('.json') || file.mimeType.includes('json')) {
-      return <FileJson className="w-5 h-5 text-amber-400 flex-shrink-0" />;
-    }
-    if (file.name.endsWith('.csv') || file.mimeType.includes('csv') || file.mimeType.includes('spreadsheet')) {
-      return <FileSpreadsheet className="w-5 h-5 text-emerald-400 flex-shrink-0" />;
-    }
-    return <FileText className="w-5 h-5 text-blue-400 flex-shrink-0" />;
-  };
-
-  return (
-    <div className="space-y-6">
+export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = (props) => {
+  const model = useDriveExplorer(props);
+  const {
+    user,
+    token,
+    isAuthLoading,
+    handleSignIn,
+    handleSignOut,
+    handleCreateCloudBackup,
+    isBackingUp,
+    handleExportCSVsToDrive,
+    isExportingCSVs,
+    handleGenerateConsolidatedReport,
+    isGeneratingReport,
+    fileInputRef,
+    handleCustomFileUpload,
+    isUploadingCustom,
+    filteredFiles,
+    setActiveFilter,
+    activeFilter,
+    searchQuery,
+    setSearchQuery,
+    loadDriveData,
+    isLoadingFiles,
+    setRestoreConfirmTarget,
+    setDeleteConfirmTarget,
+    deleteConfirmTarget,
+    handleConfirmDelete,
+    restoreConfirmTarget,
+    handleConfirmRestore,
+  } = model;
+  return (<div className="space-y-6">
       {/* Google Account Connection Header */}
       <div className="bg-[#1a1d24] border border-[var(--graphite-border-subtle)] rounded-xl p-5 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -788,6 +457,5 @@ export const GoogleDriveExplorer: React.FC<GoogleDriveExplorerProps> = ({
           </div>
         </div>
       )}
-    </div>
-  );
+    </div>);
 };

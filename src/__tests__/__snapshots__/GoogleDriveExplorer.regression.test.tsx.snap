@@ -1,0 +1,46 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Google Drive — operações da tela com fronteiras simuladas > exporta os cinco CSVs na ordem, pasta e formato existentes e atualiza listagem 1`] = `
+[
+  {
+    "content": "﻿"Data","NF","Motorista","Quantidade (Ton)","Valor Madeira (R$)","Valor Frete (R$)","Status"
+"2026-08-20","","Motorista Teste - ABC-1234","2","200","30","PENDING"",
+    "description": "Planilha CSV gerada pelo sistema em DATE",
+    "folderId": "1vb-iYAB_zBL2Fq4bmvjNUGeNouxXPUJy",
+    "mimeType": "text/csv; charset=UTF-8",
+    "name": "Cargas_Klabin_DATE.csv",
+  },
+  {
+    "content": "﻿"Data","Valor (R$)","Observações / Comprovante"
+"2026-08-21","1000","Depósito de teste"",
+    "description": "Planilha CSV gerada pelo sistema em DATE",
+    "folderId": "1vb-iYAB_zBL2Fq4bmvjNUGeNouxXPUJy",
+    "mimeType": "text/csv; charset=UTF-8",
+    "name": "Depositos_Klabin_DATE.csv",
+  },
+  {
+    "content": "﻿"Data","Cliente","Produto","Quantidade","Preço Unitário (R$)","Valor Total (R$)","Status Pagamento"
+"2026-08-22","Cliente Teste","Pinus Teste","3","100","300","PENDING"",
+    "description": "Planilha CSV gerada pelo sistema em DATE",
+    "folderId": "1vb-iYAB_zBL2Fq4bmvjNUGeNouxXPUJy",
+    "mimeType": "text/csv; charset=UTF-8",
+    "name": "Vendas_Clientes_DATE.csv",
+  },
+  {
+    "content": "﻿"Nome","Placa","Telefone","Status"
+"Motorista Teste","ABC-1234","","ACTIVE"",
+    "description": "Planilha CSV gerada pelo sistema em DATE",
+    "folderId": "1vb-iYAB_zBL2Fq4bmvjNUGeNouxXPUJy",
+    "mimeType": "text/csv; charset=UTF-8",
+    "name": "Motoristas_Fretes_DATE.csv",
+  },
+  {
+    "content": "﻿"Nome do Produto","Unidade","Preço Padrão (R$)","Status"
+"Pinus Teste","ton","100","ACTIVE"",
+    "description": "Planilha CSV gerada pelo sistema em DATE",
+    "folderId": "1vb-iYAB_zBL2Fq4bmvjNUGeNouxXPUJy",
+    "mimeType": "text/csv; charset=UTF-8",
+    "name": "Catalogo_Produtos_DATE.csv",
+  },
+]
+`;

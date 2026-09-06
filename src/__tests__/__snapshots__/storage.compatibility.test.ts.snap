@@ -1,0 +1,177 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`mantém normalização, campos legados, relações por nome e registros inválidos 1`] = `
+{
+  "Cargas": [
+    {
+      "createdAt": "2026-08-20T00:00:00.000Z",
+      "date": "2026-08-20",
+      "deductFromBalance": false,
+      "driverId": "m1",
+      "driverPlate": "Motorista Teste - ABC-1234",
+      "extraLegacy": "preservado",
+      "freightCost": 30,
+      "freightPaidAt": undefined,
+      "freightPayable": true,
+      "freightStatus": "PENDING",
+      "id": "c1",
+      "invoiceNumber": undefined,
+      "motoristaId": "m1",
+      "product": "Pinus Teste",
+      "productId": "p1",
+      "quantityTons": 2,
+      "supplier": "Klabin",
+      "totalValue": 200,
+      "valuePerTon": 100,
+    },
+  ],
+  "Clientes": [
+    {
+      "contact": "Contato Teste",
+      "createdAt": "2026-08-01T12:00:00Z",
+      "id": "cl1",
+      "name": "Cliente Teste",
+      "notes": "",
+    },
+  ],
+  "Depositos_Klabin": [
+    {
+      "createdAt": "2026-08-21T00:00:00.000Z",
+      "date": "2026-08-21",
+      "id": "d1",
+      "notes": "Depósito de teste",
+      "value": 1000,
+    },
+  ],
+  "Frete": [],
+  "Motoristas": [
+    {
+      "createdAt": "2026-08-01T12:00:00Z",
+      "id": "m1",
+      "licensePlate": "ABC-1234",
+      "name": "Motorista Teste",
+      "phone": undefined,
+      "status": "ACTIVE",
+      "trailerPlate": undefined,
+    },
+  ],
+  "Produtos": [
+    {
+      "createdAt": "2026-08-01T12:00:00Z",
+      "id": "p1",
+      "name": "Pinus Teste",
+      "referencePrice": 100,
+      "status": "ACTIVE",
+      "unitOfMeasure": "ton",
+    },
+  ],
+  "Vendas": [
+    {
+      "clientId": "cl1",
+      "clientName": "Cliente Teste",
+      "createdAt": "2026-08-22T12:00:00Z",
+      "date": "2026-08-22",
+      "driverId": "m1",
+      "freightCost": 45,
+      "freightPayable": "YES",
+      "freightStatus": "PENDING",
+      "id": "v1",
+      "notes": "",
+      "paidAt": undefined,
+      "product": "Pinus Teste",
+      "productId": "p1",
+      "quantity": 3,
+      "status": "CANCELLED",
+      "totalValue": 300,
+      "unitPrice": 100,
+    },
+  ],
+  "appSettings": {
+    "company": {
+      "city": "Curitiba",
+      "cnpj": undefined,
+      "name": "Madeireira Sol Nascente",
+      "state": "PR",
+    },
+    "companyName": "Madeireira Sol Nascente",
+    "cycles": {
+      "lockedMonths": [],
+    },
+    "freight": {
+      "defaultCargoFreightPayable": true,
+      "defaultSaleFreightPayable": false,
+    },
+    "freightRatePerTon": 15,
+    "klabin": {
+      "defaultDeductFromBalance": true,
+    },
+  },
+  "customLogo": undefined,
+}
+`;
+
+exports[`mantém normalização, campos legados, relações por nome e registros inválidos 2`] = `
+{
+  "isValid": true,
+  "sanitizedDb": {
+    "Cargas": [
+      {
+        "createdAt": "2026-08-20T00:00:00.000Z",
+        "date": "2026-08-20",
+        "deductFromBalance": false,
+        "driverId": undefined,
+        "driverPlate": "Motorista Teste - ABC-1234",
+        "extraLegacy": "preservado",
+        "freightCost": 30,
+        "freightPaidAt": undefined,
+        "freightPayable": true,
+        "freightStatus": "PENDING",
+        "id": "c1",
+        "invoiceNumber": undefined,
+        "motoristaId": undefined,
+        "product": "Pinus Teste",
+        "productId": undefined,
+        "quantityTons": 2,
+        "supplier": "Klabin",
+        "totalValue": 200,
+        "valuePerTon": 100,
+      },
+    ],
+    "Clientes": [],
+    "Depositos_Klabin": [],
+    "Frete": [],
+    "Motoristas": [],
+    "Produtos": [],
+    "Vendas": [],
+    "appSettings": {
+      "company": {
+        "city": undefined,
+        "cnpj": undefined,
+        "name": "Madeireira Sol Nascente",
+        "state": undefined,
+      },
+      "companyName": "Madeireira Sol Nascente",
+      "cycles": {
+        "lockedMonths": [],
+      },
+      "freight": {
+        "defaultCargoFreightPayable": true,
+        "defaultSaleFreightPayable": false,
+      },
+      "freightRatePerTon": 15,
+      "klabin": {
+        "defaultDeductFromBalance": true,
+      },
+    },
+    "customLogo": undefined,
+  },
+  "warnings": [
+    "Propriedade "Depositos_Klabin" não encontrada. Inicializada como lista vazia [].",
+    "Propriedade "Clientes" não encontrada. Inicializada como lista vazia [].",
+    "Propriedade "Vendas" não encontrada. Inicializada como lista vazia [].",
+    "Propriedade "Produtos" não encontrada. Inicializada como lista vazia [].",
+    "Propriedade "Motoristas" não encontrada. Inicializada como lista vazia [].",
+    "2 registro(s) fantasma/corrompido(s) de Cargas foram removido(s).",
+  ],
+}
+`;

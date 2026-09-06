@@ -1,0 +1,459 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`App — contratos entre abas > exportação CSV segue a aba selecionada e conserva as colunas locais 1`] = `
+[
+  {
+    "columns": [
+      {
+        "key": "date",
+        "label": "Data Compra",
+      },
+      {
+        "key": "supplier",
+        "label": "Fornecedor",
+      },
+      {
+        "key": "product",
+        "label": "Produto",
+      },
+      {
+        "key": "quantityTons",
+        "label": "Quantidade (Ton)",
+      },
+      {
+        "key": "valuePerTon",
+        "label": "Valor/Ton (R$)",
+      },
+      {
+        "key": "totalValue",
+        "label": "Valor Total (R$)",
+      },
+      {
+        "key": "driverPlate",
+        "label": "Motorista / Placa",
+      },
+      {
+        "key": "freightPayable",
+        "label": "Frete a Pagar?",
+      },
+      {
+        "key": "freightCost",
+        "label": "Custo Frete (R$)",
+      },
+      {
+        "key": "deductFromBalance",
+        "label": "Abater do Saldo?",
+      },
+      {
+        "key": "notes",
+        "label": "Observações",
+      },
+    ],
+    "ids": [
+      "c1",
+    ],
+    "table": "Cargas",
+  },
+  {
+    "columns": [
+      {
+        "key": "date",
+        "label": "Data Depósito",
+      },
+      {
+        "key": "value",
+        "label": "Valor Depósito (R$)",
+      },
+      {
+        "key": "notes",
+        "label": "Observações / Comprovante",
+      },
+    ],
+    "ids": [
+      "d1",
+    ],
+    "table": "Depositos_Klabin",
+  },
+  {
+    "columns": [
+      {
+        "key": "date",
+        "label": "Data Venda",
+      },
+      {
+        "key": "clientName",
+        "label": "Nome Cliente",
+      },
+      {
+        "key": "product",
+        "label": "Produto",
+      },
+      {
+        "key": "quantity",
+        "label": "Quantidade",
+      },
+      {
+        "key": "unitPrice",
+        "label": "Preço Unitário (R$)",
+      },
+      {
+        "key": "totalValue",
+        "label": "Valor Total (R$)",
+      },
+      {
+        "key": "status",
+        "label": "Status",
+      },
+      {
+        "key": "notes",
+        "label": "Observações",
+      },
+    ],
+    "ids": [
+      "v1",
+    ],
+    "table": "Vendas",
+  },
+  {
+    "columns": [
+      {
+        "key": "name",
+        "label": "Nome Motorista",
+      },
+      {
+        "key": "licensePlate",
+        "label": "Placa Veículo",
+      },
+      {
+        "key": "trailerPlate",
+        "label": "Placa Reboque",
+      },
+      {
+        "key": "phone",
+        "label": "Telefone",
+      },
+      {
+        "key": "pixKey",
+        "label": "Chave PIX",
+      },
+      {
+        "key": "status",
+        "label": "Status",
+      },
+    ],
+    "ids": [
+      "m1",
+    ],
+    "table": "Motoristas",
+  },
+]
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > cargas 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "33e1876f35c18a6f7a34694e30188247b0e26aa11a46b5ed36576c81063e3093",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Módulo KlabinControle de Cargas Fornecidas e Depósitos de Adiantamento Klabin S.A.Google DriveSaldo Livre KlabinR$ 800,00CSVCargas de Madeira (1)Depósitos Klabin (1)Gerar Extrato PDFMódulo Klabin S.A.Volume Total (Toneladas)2,00 TonValor Total de ComprasR$ 200,00Abatido do Saldo KlabinR$ 200,00Registro de Cargas (1)Adicionar CargaDataFornecedorProdutoQtd (Ton)R$/TonValor TotalMotorista / PlacaFreteAbater Saldo?Ações20/08/2026KlabinPinus Teste2,00R$ 100,00R$ 200,00Motorista Teste - ABC-1234R$ 30,00SIM (Abatido)",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > clientes 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "bb7c873cba53b3d88f406827f61e91aebc2d249256382dac1dffe57b55558ee2",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Clientes & ProdutosGestão comercial de vendas a terceiros e catálogo de produtosGoogle DriveSaldo Livre KlabinR$ 800,00CSVClientes & Vendas (1)Catálogo de Produtos (1)Módulo Comercial & ProdutosFaturamento Total VendasR$ 300,00Vendas Recebidas / QuitadasR$ 0,00A Receber (Pendentes)R$ 300,00Lançamento de Vendas Diretas (1)Cadastro de Clientes (1)Clientes CadastradosCadastrar ClienteNome / Razão SocialContato / TelefoneObservaçõesAçõesCliente TesteContato Teste-",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > config Aplicativo 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "daa40fefe45c7273911d14a16703d16ee8f13df53014adbbde749a04b938acde",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Configurações e AjustesCópias de segurança, tarifa padrão de frete e auditoriaGoogle DriveSaldo Livre KlabinR$ 800,00Configurações e AjustesCentral de preferências globais, informações institucionais e administração do sistemaPreferências Globais • Persistência SincronizadaEmpresaKlabinFretesCiclosDados & BackupGoogle DriveAplicativoInformações do AplicativoEspecificações técnicas e ambiente de execuçãoNome do SistemaMadeireira Sol NascenteVersão da Aplicaçãov0.0.0Ambiente de ExecuçãoWebArmazenamento LocalDisponívelPreferências de InicializaçãoDefina qual tela deve ser apresentada ao abrir a aplicação neste dispositivoAo abrir o aplicativo:Painel Consolidado (Padrão)Inicia sempre no Dashboard com visão geral dos indicadores operacionais e financeiros.Último módulo utilizadoReabre automaticamente o último módulo visualizado (Klabin, Clientes, Motoristas ou Ajustes).Madeireira Sol NascenteSistema de Gestão Operacional e Controle FinanceiroVersão 0.0.0 • Madeireira V3",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > config Ciclos 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": undefined,
+      "value": "09",
+    },
+    {
+      "checked": undefined,
+      "value": "2026",
+    },
+  ],
+  "html": "cc500e2276bc824ba4aa91cce98999ab91fcb80b44e81ea753fba63c0feeef38",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Configurações e AjustesCópias de segurança, tarifa padrão de frete e auditoriaGoogle DriveSaldo Livre KlabinR$ 800,00Configurações e AjustesCentral de preferências globais, informações institucionais e administração do sistemaPreferências Globais • Persistência SincronizadaEmpresaKlabinFretesCiclosDados & BackupGoogle DriveAplicativoAdministração de Fechamento de CicloBloqueie períodos mensais para impedir inclusões, edições ou exclusões acidentaisSelecionar PeríodoEscolha o mês e ano para consultar o estado ou alterar o fechamentoABERTOMêsJaneiroFevereiroMarçoAbrilMaioJunhoJulhoAgostoSetembroOutubroNovembroDezembroAno2024202520262027202820292030Fechar cicloPeríodos Fechados0Nenhum ciclo fechado no momento. Todos os períodos estão abertos para lançamento.O que acontece ao fechar um ciclo mensal?O fechamento bloqueia a criação, edição e exclusão de Cargas, Depósitos Klabin, Vendas e quitação de Fretes pertencentes àquele mês. Cadastros de Clientes, Produtos e Motoristas continuam disponíveis. O estado de fechamento é sincronizado para todos os dispositivos.",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > config Dados & Backup 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "3c6da172f39d76b22cd67a8b18b95a80e2aace966f6b757b14b19008d216cb73",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Configurações e AjustesCópias de segurança, tarifa padrão de frete e auditoriaGoogle DriveSaldo Livre KlabinR$ 800,00Configurações e AjustesCentral de preferências globais, informações institucionais e administração do sistemaPreferências Globais • Persistência SincronizadaEmpresaKlabinFretesCiclosDados & BackupGoogle DriveAplicativoSincronização de DadosEstado do serviço de persistência e banco remotoTestar conexãoFirebase FirestoreNão configuradoA aplicação está funcionando com armazenamento local neste dispositivo.Estado da SincronizaçãoNão configuradoOperando em modo local seguro neste navegador.Última SincronizaçãoAinda não sincronizadoRegistro da última comunicação confirmada com o servidor.Backups Automáticos0 / 5Histórico rotativo de cópias de segurança locais salvas automaticamenteCriar backup agoraExportar backup atualNenhum backup automático registrado até o momento.Importação e Restauração de ArquivoCarregue um arquivo JSON de backup gerado anteriormente para restaurar a base de dadosSelecione um arquivo de backup em formato JSON (.json)Antes da restauração, o sistema validará o conteúdo do arquivo e apresentará o resumo completo das coleções contidas.Selecionar arquivo JSON",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > config Fretes 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "15,00",
+    },
+  ],
+  "html": "6d8934f799c5aca262a1a963dd52627f758ac26352faf995a6087d2dd5fd3817",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Configurações e AjustesCópias de segurança, tarifa padrão de frete e auditoriaGoogle DriveSaldo Livre KlabinR$ 800,00Configurações e AjustesCentral de preferências globais, informações institucionais e administração do sistemaPreferências Globais • Persistência SincronizadaEmpresaKlabinFretesCiclosDados & BackupGoogle DriveAplicativoTarifa AtualR$ 15,00 / tonValor base para novos lançamentosMotoristas Ativos1Disponíveis para fretesMotoristas Inativos0Histórico preservadoConfigurações e Tarifas de FretePreferências globais aplicadas na criação de novos registrosValor padrão do frete por tonelada (R$)Utilizado para o cálculo automático do custo de frete (Quantidade em Toneladas × Tarifa) ao selecionar frete a pagar em novos registros.R$Preferências para novos lançamentosFrete a pagar por padrão em novas CargasQuando ativo, o campo "Frete a Pagar" iniciará marcado como SIM ao abrir o formulário de Nova Carga.Frete a pagar por padrão em novas VendasQuando ativo, o campo "Frete a Pagar" iniciará marcado como SIM ao abrir o formulário de Nova Venda.Esta opção define apenas o estado inicial ao cadastrar novos registros.Registros e fretes já lançados continuam com os valores salvos. A gestão operacional e a quitação de fretes continuam disponíveis em Gestão de Motoristas → Fretes.Salvar alterações",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > config Google Drive 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "a9ca9f12e203b8ef7f437000b0a4dd99395b16ba9a0bc5c0f5556010df969a6e",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Configurações e AjustesCópias de segurança, tarifa padrão de frete e auditoriaGoogle DriveSaldo Livre KlabinR$ 800,00Configurações e AjustesCentral de preferências globais, informações institucionais e administração do sistemaPreferências Globais • Persistência SincronizadaEmpresaKlabinFretesCiclosDados & BackupGoogle DriveAplicativoIntegração Google DriveOficial Google WorkspaceArmazenamento em nuvem de alta segurança. Salve backups automáticos e manuais em JSON, exporte planilhas CSV consolidadas e anexe comprovantes e documentos fiscais na sua pasta dedicada do Google Drive.Conectar Google DriveConecte sua Conta Google DriveVincule sua conta para criar cópias de segurança criptografadas em nuvem, exportar relatórios diretamente para planilhas e gerenciar recibos fiscais com total comodidade e segurança.Fazer Login com o Google",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > config Klabin 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "b060f5364ff81fed79fbefe5a46b0fc4620478f5726b5501454fab9ad478fdce",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Configurações e AjustesCópias de segurança, tarifa padrão de frete e auditoriaGoogle DriveSaldo Livre KlabinR$ 800,00Configurações e AjustesCentral de preferências globais, informações institucionais e administração do sistemaPreferências Globais • Persistência SincronizadaEmpresaKlabinFretesCiclosDados & BackupGoogle DriveAplicativoSaldo Livre KlabinIndicador derivado em tempo realSomente Leitura • Calculado AutomaticamenteR$ 800,00O Saldo Livre Klabin é calculado automaticamente a partir dos depósitos e das cargas abatidas.Preferências para novas cargasComportamento padrão inicial ao criar novos registros de cargasAbater novas cargas do Saldo Klabin por padrãoQuando ativo, o campo "Abater do Saldo Klabin" iniciará marcado como SIM ao abrir o formulário de Nova Carga.Esta opção define apenas o estado inicial de novas cargas.Cargas já cadastradas não são alteradas. Ao editar uma carga existente, o valor salvo naquela carga será sempre preservado.Salvar alterações",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > dashboard 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "0c4c74e590cf6d4451dd16afdcf44c9ea67ab29b825efd26efc82dec40a9c37c",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Painel ConsolidadoVisão unificada de saldos, cargas, fretes e movimentaçõesGoogle DriveSaldo Livre KlabinR$ 800,00Saldo Operacional Livre KlabinR$ 800,00Total Depósitos (R$ 1.000,00) − Total Cargas Abatidas (R$ 200,00)Módulo KlabinClientes & VendasVolume Florestal2,00 Ton1 cargas lançadasTotal de CargasR$ 200,00Abatido: R$ 200,00Depósitos KlabinR$ 1.000,001 adiantamentos creditadosFretes a PagarR$ 75,00Quitados: R$ 0,00Visão IntegradaDemonstrativo de CaixaVolumes por MadeiraConsolidação Operacional & FinanceiraFechamento de CompetênciasBloqueie meses encerrados para proteger lançamentos de cargas e depósitos contra alterações.setembro de 2026Abertoagosto de 2026AbertoÚltimas Movimentações OperacionaisVenda Direta: Cliente TestePinus Teste (3 un/ton)R$ 300,0022/08/2026Depósito / Adiantamento KlabinDepósito de testeR$ 1.000,0021/08/2026Carga: Klabin (Pinus Teste)2,00 Ton - NF S/NR$ 200,0020/08/2026",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > depositos 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "b43e41daebdc2d6ff2b94309b92d638e4f7c3ab82ed4cba58981e8706c31bb9e",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Módulo KlabinControle de Cargas Fornecidas e Depósitos de Adiantamento Klabin S.A.Google DriveSaldo Livre KlabinR$ 800,00CSVCargas de Madeira (1)Depósitos Klabin (1)Gerar Extrato PDFMódulo Klabin S.A.Total Depósitos e Adiantamentos RecebidosR$ 1.000,00Depósitos Klabin (1)Novo DepósitoDataValor do DepósitoObservações / ComprovanteAções21/08/2026R$ 1.000,00Depósito de teste",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > empresa 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "Madeireira Sol Nascente",
+    },
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "Curitiba",
+    },
+    {
+      "checked": undefined,
+      "value": "PR",
+    },
+  ],
+  "html": "79a4fddfa6882ad33f76d229bbf6241ab345bca3c14b500153300370b8b2e5a5",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Configurações e AjustesCópias de segurança, tarifa padrão de frete e auditoriaGoogle DriveSaldo Livre KlabinR$ 800,00Configurações e AjustesCentral de preferências globais, informações institucionais e administração do sistemaPreferências Globais • Persistência SincronizadaEmpresaKlabinFretesCiclosDados & BackupGoogle DriveAplicativoIdentidade Visual da EmpresaLogotipo exibido no cabeçalho e na navegação lateralPadrãoEnviar imagem da logoFormatos aceitos: PNG, JPG ou WEBP. Tamanho máximo recomendado: 2MB.Dados da EmpresaInformações cadastrais e institucionaisNome da Empresa / Razão Social *CNPJ (opcional)Cidade (opcional)UFACALAPAMBACEDFESGOMAMTMSMGPAPBPRPEPIRJRNRSRORRSCSPSETOSalvar alterações",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > motoristas 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "86fc59f3f48ae4d9a5846168c758b013302eb696bc48e46fafb2cfbce97e8e63",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Gestão de MotoristasControle de fretes a pagar, quitações e cadastro de veículosGoogle DriveSaldo Livre KlabinR$ 800,00CSVTotal Geral de FretesR$ 75,00Fretes Pendentes a PagarR$ 75,00Fretes Quitados / PagosR$ 0,00Contas de Frete por MotoristaFretes QuitadosCadastro de Motoristas (1)Motorista Teste / ABC-1234PendenteR$ 75,00Gerar PDFQuitar Fretes PendentesDataTipoProdutoQtd (Ton)Custo FreteStatus PagamentoAção22/08/2026VENDAPinus Teste3,00R$ 45,00PENDENTEAlternar Status20/08/2026CARGAPinus Teste2,00R$ 30,00PENDENTEAlternar Status",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > produtos 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "45c4884c457a9160f07e2aac3213fcbedc8272ad05aa0f50174b0eb3750a60a8",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Clientes & ProdutosGestão comercial de vendas a terceiros e catálogo de produtosGoogle DriveSaldo Livre KlabinR$ 800,00CSVClientes & Vendas (1)Catálogo de Produtos (1)Módulo Comercial & ProdutosCatálogo de Produtos (1)Novo ProdutoNome do ProdutoUnidade de MedidaPreço Referência (R$)StatusAçõesPinus TestetonR$ 100,00ATIVO",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > vendas 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "0f20a82c0ce192cef85fb5017d9fdd0a84d07285ba792fbdfb78f9f3eda8efcf",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Clientes & ProdutosGestão comercial de vendas a terceiros e catálogo de produtosGoogle DriveSaldo Livre KlabinR$ 800,00CSVClientes & Vendas (1)Catálogo de Produtos (1)Módulo Comercial & ProdutosFaturamento Total VendasR$ 300,00Vendas Recebidas / QuitadasR$ 0,00A Receber (Pendentes)R$ 300,00Lançamento de Vendas Diretas (1)Cadastro de Clientes (1)Pendentes (1)Quitadas (0)Nova Venda1 cliente com valores a receberRecolher TodosCliente TesteContato Teste1 venda pendenteTotal a Receber:R$ 300,00Gerar PDFDataProdutoQtdPreço Un.Valor TotalFreteStatus / CobrançaAções22/08/2026Pinus Teste3,00R$ 100,00R$ 300,00R$ 45,00 (Pend.)PENDENTE (Quitar)",
+}
+`;
+
+exports[`App — contratos entre abas > mantém DOM, estilos e valores de todas as telas e subabas > vendas quitadas 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "",
+    },
+  ],
+  "html": "3a70a5241a22a4bd0af45f3dfd31463835492f3360e05786103c9ddaa36f2721",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Clientes & ProdutosGestão comercial de vendas a terceiros e catálogo de produtosGoogle DriveSaldo Livre KlabinR$ 800,00CSVClientes & Vendas (1)Catálogo de Produtos (1)Módulo Comercial & ProdutosFaturamento Total VendasR$ 300,00Vendas Recebidas / QuitadasR$ 0,00A Receber (Pendentes)R$ 300,00Lançamento de Vendas Diretas (1)Cadastro de Clientes (1)Pendentes (1)Quitadas (0)Nova VendaNenhuma venda quitada.",
+}
+`;
+
+exports[`App — contratos entre abas > preserva modais e rascunhos de configurações entre subabas > modal cliente 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": undefined,
+      "value": "",
+    },
+  ],
+  "html": "d26b572d09e0d847e249c91f8353d4136ef58cd689fea4ec5f703522b192651f",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Clientes & ProdutosGestão comercial de vendas a terceiros e catálogo de produtosGoogle DriveSaldo Livre KlabinR$ 800,00CSVClientes & Vendas (1)Catálogo de Produtos (1)Módulo Comercial & ProdutosFaturamento Total VendasR$ 300,00Vendas Recebidas / QuitadasR$ 0,00A Receber (Pendentes)R$ 300,00Lançamento de Vendas Diretas (1)Cadastro de Clientes (1)Clientes CadastradosCadastrar ClienteNome / Razão SocialContato / TelefoneObservaçõesAçõesCliente TesteContato Teste-Cadastrar Novo ClienteNome / Razão Social *Contato / TelefoneObservaçõesCancelarSalvar Cliente",
+}
+`;
+
+exports[`App — contratos entre abas > preserva modais e rascunhos de configurações entre subabas > modal venda 1`] = `
+{
+  "fields": [
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "",
+    },
+    {
+      "checked": false,
+      "value": "2026-09-06",
+    },
+    {
+      "checked": undefined,
+      "value": "cl1",
+    },
+    {
+      "checked": undefined,
+      "value": "p1",
+    },
+    {
+      "checked": false,
+      "value": "1",
+    },
+    {
+      "checked": false,
+      "value": "100,00",
+    },
+    {
+      "checked": undefined,
+      "value": "NO",
+    },
+    {
+      "checked": undefined,
+      "value": "",
+    },
+  ],
+  "html": "1a5d195b499110d21e8a390f7df2be26cc4f3c62495c5c46c1b71d8cfb9eeedb",
+  "text": "LogoMadeireira Sol NascenteSistema de GestãoMódulos PrincipaisPainel ConsolidadoVisão Geral & IndicadoresKlabinCargas & Depósitos2Clientes & ProdutosVendas & Catálogo2Gestão de MotoristasFretes & Cadastro1Configurações e AjustesBackups & SistemaMadeireira Sol Nascente/Clientes & ProdutosGestão comercial de vendas a terceiros e catálogo de produtosGoogle DriveSaldo Livre KlabinR$ 800,00CSVClientes & Vendas (1)Catálogo de Produtos (1)Módulo Comercial & ProdutosFaturamento Total VendasR$ 300,00Vendas Recebidas / QuitadasR$ 0,00A Receber (Pendentes)R$ 300,00Lançamento de Vendas Diretas (1)Cadastro de Clientes (1)Pendentes (1)Quitadas (0)Nova Venda1 cliente com valores a receberRecolher TodosCliente TesteContato Teste1 venda pendenteTotal a Receber:R$ 300,00Gerar PDFDataProdutoQtdPreço Un.Valor TotalFreteStatus / CobrançaAções22/08/2026Pinus Teste3,00R$ 100,00R$ 300,00R$ 45,00 (Pend.)PENDENTE (Quitar)Lançar Nova VendaData da Venda *Cliente *Cliente TesteProduto Vendido *Pinus Teste  — R$ 100/tonQuantidade *Preço Unitário (R$) *Total da Venda (Qtd × Preço):R$ 100,00Frete desta VendaNÃO (Sem Frete)SIM (Frete a Pagar)ObservaçõesCancelarSalvar Venda",
+}
+`;

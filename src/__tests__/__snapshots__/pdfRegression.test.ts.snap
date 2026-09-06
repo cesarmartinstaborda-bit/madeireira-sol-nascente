@@ -1,0 +1,10 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`preserva os quatro PDFs completos, inclusive layout e paginação 1`] = `
+{
+  "Extrato_Klabin_2026-09-06.pdf": "e0656d2f093ce7b7b4a8ed76a23fd343324dba9d3b27ec456866ef1bb1aa2e8a",
+  "Fretes_Motorista-Teste_2026-09-06.pdf": "1352446ee600be38f71873f02fb3ff26faa36e1357d1de16b60557e6b991a4d7",
+  "Pendencias_Cliente-Teste_2026-09-06.pdf": "48b3741ef9477da264940e92dfebf6eff02f6c9591623c63bd86b806a20a8413",
+  "Relatorio_Consolidado_Madeireira-Sol-Nascente_2026-09-06.pdf": "1ef9e4c2ffcb80ac55b30fb6866a0c9f8d227460226c4e2f6a4ace6a40f19af6",
+}
+`;
