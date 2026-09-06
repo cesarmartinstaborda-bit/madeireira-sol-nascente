@@ -72,3 +72,25 @@ describe('Google Drive — operações da tela com fronteiras simuladas', () => 
     vi.restoreAllMocks();
   });
 });
+
+it.each([true, false])('backup no Drive trata sucesso %s sem alterar o banco local', async success => {
+  const database = regressionDatabase(); const before = JSON.stringify(database);
+  if (!success) drive.backup.mockRejectedValueOnce(new Error('offline simulado'));
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  render(<GoogleDriveExplorer database={database} onRestoreDatabase={restore} onShowToast={toast} />);
+  await connect(); click(/Salvar Backup JSON/);
+  await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.stringContaining(success ? 'Backup salvo com sucesso' : 'Erro ao salvar backup')));
+  expect(drive.backup).toHaveBeenCalledWith(database);
+  expect(JSON.stringify(database)).toBe(before); expect(restore).not.toHaveBeenCalled();
+  error.mockRestore();
+});
+it('erro na listagem informa falha e permite nova tentativa', async () => {
+  drive.list.mockRejectedValueOnce(new Error('offline simulado'));
+  const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+  render(<GoogleDriveExplorer database={regressionDatabase()} onRestoreDatabase={restore} onShowToast={toast} />);
+  await act(async () => auth.listener({ email: 'teste@example.invalid' }, 'fake-token'));
+  await waitFor(() => expect(toast).toHaveBeenCalledWith('Erro no Google Drive: offline simulado'));
+  fireEvent.click(screen.getByTitle('Atualizar lista do Google Drive'));
+  await screen.findByText('copia.json');
+  error.mockRestore();
+});

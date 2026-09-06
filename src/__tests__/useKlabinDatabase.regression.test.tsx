@@ -51,3 +51,16 @@ it('só assina o Firestore depois que o Firebase Auth confirma um usuário e can
   expect(cloud.unsubscribe).toHaveBeenCalledTimes(1);
   unmount();
 });
+it('login tardio usa dados locais atuais e callbacks após logout não sobrescrevem o banco', () => {
+  auth.current = null;
+  const { result } = renderHook(useKlabinDatabase);
+  act(() => result.current.mutateDatabase(prev => ({ ...prev, Depositos_Klabin: [{ id: 'latest', date: '2026-09-01', value: 3000 }] })));
+  act(() => auth.cb!({ uid: 'u1' }));
+  expect(cloud.seed.mock.calls[0][0].Depositos_Klabin[0].id).toBe('latest');
+  act(() => auth.cb!({ uid: 'u1' }));
+  expect(cloud.seed).toHaveBeenCalledTimes(1);
+  const lateSnapshot = cloud.listener;
+  act(() => auth.cb!(null));
+  act(() => lateSnapshot('Depositos_Klabin', []));
+  expect(result.current.database.Depositos_Klabin[0].id).toBe('latest');
+});

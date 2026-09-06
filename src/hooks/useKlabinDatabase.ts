@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { KlabinDatabase } from '../types';
 import { loadDatabase, saveDatabase, sanitizeDatabase, createAutoBackup } from '../utils/storage';
+import { onFirebaseUser } from '../utils/googleAuth';
 import { subscribeToFirestore, checkAndSeedFirestoreIfEmpty } from '../utils/firebaseSync';
 
 /**
@@ -12,6 +13,9 @@ import { subscribeToFirestore, checkAndSeedFirestoreIfEmpty } from '../utils/fir
  */
 export function useKlabinDatabase() {
   const [database, setDatabase] = useState<KlabinDatabase>(() => loadDatabase());
+
+  const databaseRef = useRef(database);
+  databaseRef.current = database;
 
   // Persist locally whenever state changes (without triggering auto-backup on mount/reload/snapshots)
   useEffect(() => {
@@ -32,30 +36,40 @@ export function useKlabinDatabase() {
 
   // Real-time Firestore sync with authoritative collections
   useEffect(() => {
-    checkAndSeedFirestoreIfEmpty(database).catch((err) => {
-      console.warn('[Firestore] Inicialização:', err);
-    });
+    let unsubscribe = () => {};
+    let activeUser: string | null = null;
+    const stopAuth = onFirebaseUser((user) => {
+      const uid = user?.uid ?? null;
+      if (uid === activeUser) return;
+      unsubscribe();
+      unsubscribe = () => {};
+      activeUser = uid;
+      if (!user) return;
+      checkAndSeedFirestoreIfEmpty(databaseRef.current).catch((err) => {
+        console.warn('[Firestore] Inicialização:', err);
+      });
 
-    const unsubscribe = subscribeToFirestore((collectionKey, data) => {
-      setDatabase((prev) => {
-        if (collectionKey === 'Settings') {
+      unsubscribe = subscribeToFirestore((collectionKey, data) => {
+        if (activeUser !== uid) return;
+        setDatabase((prev) => {
+          if (collectionKey === 'Settings') {
+            const updated = {
+              ...prev,
+              appSettings: data.appSettings !== undefined ? data.appSettings : prev.appSettings,
+              customLogo: data.customLogo !== undefined ? data.customLogo : prev.customLogo,
+            };
+            return sanitizeDatabase(updated);
+          }
+
           const updated = {
             ...prev,
-            appSettings: data.appSettings !== undefined ? data.appSettings : prev.appSettings,
-            customLogo: data.customLogo !== undefined ? data.customLogo : prev.customLogo,
+            [collectionKey]: data,
           };
           return sanitizeDatabase(updated);
-        }
-
-        const updated = {
-          ...prev,
-          [collectionKey]: data,
-        };
-        return sanitizeDatabase(updated);
+        });
       });
     });
-
-    return () => unsubscribe();
+    return () => { activeUser = null; stopAuth(); unsubscribe(); };
   }, []);
 
   return { database, setDatabase, mutateDatabase };

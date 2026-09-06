@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain, shell, safeStorage } = require('electron');
 const path = require('path');
+const { pathToFileURL } = require('node:url');
 const fs = require('fs');
 const http = require('http');
 const crypto = require('crypto');
@@ -58,16 +59,22 @@ let signInState = null;
 // ---------------------------------------------------------------------------
 const sessionFilePath = () => path.join(app.getPath('userData'), 'gdrive-session.bin');
 
+function hasSecureTokenStorage() {
+  return safeStorage.isEncryptionAvailable() &&
+    (process.platform !== 'linux' || !['basic_text', 'unknown'].includes(safeStorage.getSelectedStorageBackend()));
+}
+
 function persistRefreshToken(refreshToken) {
   if (!refreshToken) return;
   try {
-    if (!safeStorage.isEncryptionAvailable()) {
+    if (!hasSecureTokenStorage()) {
       console.warn(
         '[Auth] safeStorage indisponível neste ambiente — refresh_token NÃO será salvo (login persistente desativado). Nunca gravamos em texto puro.'
       );
       return;
     }
-    fs.writeFileSync(sessionFilePath(), safeStorage.encryptString(refreshToken));
+    fs.writeFileSync(sessionFilePath(), safeStorage.encryptString(refreshToken), { mode: 0o600 });
+    fs.chmodSync(sessionFilePath(), 0o600);
   } catch (err) {
     console.warn('[Auth] Falha ao salvar sessão do Google Drive:', err.message);
   }
@@ -75,7 +82,7 @@ function persistRefreshToken(refreshToken) {
 
 function loadRefreshToken() {
   try {
-    if (!safeStorage.isEncryptionAvailable()) return null;
+    if (!hasSecureTokenStorage()) return null;
     const file = sessionFilePath();
     if (!fs.existsSync(file)) return null;
     return safeStorage.decryptString(fs.readFileSync(file));
@@ -288,7 +295,9 @@ function startGoogleSignIn() {
       authUrl.searchParams.set('code_challenge_method', 'S256');
       authUrl.searchParams.set('state', state);
 
-      shell.openExternal(authUrl.toString());
+      shell.openExternal(authUrl.toString()).catch(() => {
+        settle(reject, new Error('Não foi possível abrir o navegador para login.'));
+      });
     });
 
     const timeoutId = setTimeout(() => {
@@ -321,12 +330,29 @@ if (!gotTheLock) {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        sandbox: true,
         preload: path.join(__dirname, 'preload.js'),
       },
     });
 
     const isDev = !app.isPackaged;
-    const startUrl = process.env.ELECTRON_START_URL || (isDev ? 'http://localhost:3000' : null);
+    const startUrl = isDev ? (process.env.ELECTRON_START_URL || 'http://localhost:3000') : null;
+    const trustedUrl = startUrl || pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href;
+    mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+      // Drive's existing 'open file' links belong in the system browser.
+      try {
+        const target = new URL(url);
+        if (target.protocol === 'https:' && ['drive.google.com', 'docs.google.com'].includes(target.hostname)) {
+          shell.openExternal(target.href).catch(() => console.warn('[Drive] Falha ao abrir arquivo no navegador.'));
+        }
+      } catch { /* Ignore invalid remote file links. */ }
+      return { action: 'deny' };
+    });
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+      if (url !== trustedUrl) event.preventDefault();
+    });
+    mainWindow.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+    mainWindow.webContents.session.setPermissionCheckHandler(() => false);
     if (startUrl) {
       mainWindow.loadURL(startUrl);
     } else {
@@ -338,12 +364,26 @@ if (!gotTheLock) {
     });
   }
 
-  ipcMain.handle('google-sign-in', () => startGoogleSignIn());
+  function requireMainFrame(event) {
+    const contents = mainWindow?.webContents;
+    if (!contents || event.sender !== contents || event.senderFrame !== contents.mainFrame) {
+      throw new Error('Origem IPC não autorizada.');
+    }
+    const expected = app.isPackaged
+      ? pathToFileURL(path.join(__dirname, 'dist', 'index.html')).href
+      : (process.env.ELECTRON_START_URL || 'http://localhost:3000');
+    if (new URL(event.senderFrame.url).href !== new URL(expected).href) {
+      throw new Error('Origem IPC não autorizada.');
+    }
+  }
+
+  ipcMain.handle('google-sign-in', (event) => { requireMainFrame(event); return startGoogleSignIn(); });
 
   // Silent reconnect on boot: exchange the stored refresh_token for a fresh
   // access_token. Returns null when there is no stored session or it is no
   // longer valid (in which case the stale session file is removed).
-  ipcMain.handle('google-restore-session', async () => {
+  ipcMain.handle('google-restore-session', async (event) => {
+    requireMainFrame(event);
     const refreshToken = loadRefreshToken();
     if (!refreshToken) return null;
     try {
@@ -360,7 +400,8 @@ if (!gotTheLock) {
 
   // Manual logout: drop the persisted refresh_token so the app stops
   // auto-reconnecting until the user signs in again.
-  ipcMain.handle('google-clear-session', () => {
+  ipcMain.handle('google-clear-session', (event) => {
+    requireMainFrame(event);
     clearStoredSession();
     return true;
   });

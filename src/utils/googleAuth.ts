@@ -61,6 +61,13 @@ export const getGoogleAuthProvider = (): GoogleAuthProvider => {
   return provider;
 };
 
+// Observe Firebase independently of the short-lived Drive access token.
+export const onFirebaseUser = (callback: (user: User | null) => void): (() => void) => {
+  const auth = getFirebaseAuth();
+  if (!auth) { callback(null); return () => {}; }
+  return onAuthStateChanged(auth, callback);
+};
+
 // Flag to indicate if we are in the middle of a sign-in flow
 let isSigningIn = false;
 // Cache the access token in memory ONLY (never in localStorage/sessionStorage)

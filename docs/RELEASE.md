@@ -43,13 +43,17 @@ Esse comando usa o mesmo caminho do CI:
 5. Outro contêiner, iniciado de Fedora 44 limpo, instala o RPM via DNF antes
    das ferramentas de teste. Confere versão, dependências, bibliotecas, atalho,
    integridade dos arquivos instalados e navegação pelos módulos/subabas.
+   Ao final, remove via DNF e verifica ausência de arquivos, links, atalhos e
+   ícones do pacote e dependências quebradas. FPM pode deixar diretórios vazios
+   não pertencentes ao pacote em `/opt`; nenhum arquivo de aplicação deve permanecer.
    Executa o Electron como usuário comum, com sandbox, Xvfb, perfil descartável,
    rede do aplicativo bloqueada e verificação do preload/IPC e do renderer.
 
 Saídas: `release/Madeireira-Sol-Nascente-<versão>-x86_64.rpm`,
 `release/SHA256SUMS`, `release/release.json` e `release/validation/`.
 `node_modules` usa volume anônimo removido ao final; somente o download do
-Electron usa cache persistente. O código funcional e o perfil do usuário não
+Electron usa cache persistente. Worktrees vinculados são suportados: seus
+metadados Git são montados somente para leitura, sem bloquear ou alterar o índice. O código funcional e o perfil do usuário não
 são alterados. Builds simultâneos devem usar checkouts separados, pois `release/`
 é o diretório de saída de cada checkout.
 
@@ -141,7 +145,7 @@ Avaliação técnica:
   o gerenciador da distribuição. Não adicionamos um atualizador AppImage ou um
   mecanismo próprio para substituir arquivos pertencentes ao RPM.
 - **electron-updater (biblioteca separada):** possui `RpmUpdater`, mas não está
-  instalado no aplicativo. A configuração atual do electron-builder 25 anuncia
+  instalado no aplicativo. A configuração do electron-builder anuncia
   os arquivos de auto-update RPM como beta; gerar esses arquivos não ativa um
   atualizador. Adotar a biblioteca exigiria integração no processo principal,
   política de autorização e assinatura e testes adicionais. A documentação
@@ -167,3 +171,10 @@ Referências: [Electron autoUpdater](https://www.electronjs.org/docs/latest/api/
 [configuração de repositórios DNF](https://dnf5.readthedocs.io/en/latest/dnf5.conf.5.html).
 AppImage permanece somente como fallback pelo comando `npm run dist:appimage`;
 não participa da publicação oficial nem do fluxo de atualização RPM.
+
+## Correções de segurança do empacotador
+
+O electron-builder está fixado em 26.15.3 para corrigir os avisos de segurança
+do builder-util-runtime, AppImage e tar encontrados na cadeia 25.1.8. Electron
+permanece em 44.2.0 e as dependências de produção mantêm suas versões.
+A instalação oficial continua usando `npm ci` e `package-lock.json`.
