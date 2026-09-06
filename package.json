@@ -14,10 +14,14 @@
     "electron:build": "npm run dist:rpm",
     "dist:linux": "npm run dist:rpm",
     "dist:rpm": "npm run build && node scripts/build-rpm.cjs",
-    "dist:appimage": "npm run build && electron-builder --linux AppImage",
-    "test": "vitest run",
+    "dist:appimage": "npm run build && electron-builder --linux AppImage --publish never",
+    "test": "vitest run && npm run test:release",
     "dist:rpm:fedora": "bash scripts/build-rpm-fedora.sh",
-    "verify:rpm:fedora": "bash scripts/verify-rpm-fedora.sh"
+    "verify:rpm:fedora": "bash scripts/verify-rpm-fedora.sh",
+    "test:release": "node --test scripts/tests/*.node.cjs",
+    "version:check": "node scripts/release.cjs check",
+    "release:verify": "node scripts/release.cjs verify",
+    "release:check": "npm run dist:rpm:fedora && npm run verify:rpm:fedora"
   },
   "dependencies": {
     "firebase": "^12.18.0",
@@ -90,6 +94,10 @@
         "alsa-lib",
         "mesa-libgbm",
         "libsecret"
+      ],
+      "fpm": [
+        "--iteration",
+        "1"
       ]
     }
   },

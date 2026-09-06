@@ -1,46 +1,100 @@
-name: Build RPM
+name: Fedora RPM CI and release
 
 on:
+  pull_request:
+    branches: [madeireira-sol-nascente-rpm]
   push:
-    branches:
-      - madeireira-sol-nascente-rpm
+    branches: [madeireira-sol-nascente-rpm]
+    tags: ['v*']
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: rpm-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-rpm:
-    runs-on: ubuntu-latest
-
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
-
-      - name: Install RPM build tools
+      - name: Validate version and tag provenance
+        env:
+          TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: |
+          RELEASE_TAG="$TAG" npm run version:check
+          if [ -n "$TAG" ]; then
+            git merge-base --is-ancestor HEAD origin/madeireira-sol-nascente-rpm
+          fi
+      - name: Install Podman
         run: |
           sudo apt-get update
-          sudo apt-get install -y rpm ruby ruby-dev build-essential
-          sudo gem install fpm -v 1.18.0 --no-document
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: TypeScript check
-        run: npm run lint
-
-      - name: Tests
-        run: npm test
-
-      - name: Build RPM
-        run: npm run dist:rpm
-
-      - name: Upload RPM
+          sudo apt-get install -y podman
+          # Disposable Ubuntu runner: allow nested Chromium user namespaces.
+          # The installed application still runs unprivileged with its sandbox.
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Reproducible install, TypeScript/lint, all tests, build and RPM in Fedora
+        run: npm run dist:rpm:fedora
+      - name: Install and test RPM in clean Fedora (sandbox enabled)
+        run: npm run verify:rpm:fedora
+      - name: Verify release integrity and source commit
+        env:
+          RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || '' }}
+        run: npm run release:verify
+      - name: Store validated release assets
         uses: actions/upload-artifact@v4
         with:
-          name: madeireira-sol-nascente-rpm
-          path: release/*.rpm
+          name: validated-rpm
           if-no-files-found: error
+          path: |
+            release/*.rpm
+            release/SHA256SUMS
+            release/release.json
+      - name: Store Fedora validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fedora-validation
+          path: release/validation/
+          if-no-files-found: ignore
+
+  publish:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    needs: validate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@v4
+        with:
+          name: validated-rpm
+          path: release
+      - name: Recheck the exact validated assets
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: npm run release:verify
+      - name: Publish RPM and SHA-256 (never replace an existing release)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            "$(node scripts/release.cjs path)" release/SHA256SUMS release/release.json \
+            --verify-tag --title "Madeireira Sol Nascente $RELEASE_TAG" --generate-notes

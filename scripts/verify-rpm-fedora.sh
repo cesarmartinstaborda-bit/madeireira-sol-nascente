@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(dirname "$0")/.."
-rpm_path=$(realpath "${1:-release/Madeireira-Sol-Nascente-1.0.0-x86_64.rpm}")
+rpm_path=$(realpath "${1:-$(node scripts/release.cjs path)}")
+test "$(basename "$rpm_path")" = "$(basename "$(node scripts/release.cjs path)")"
+node scripts/release.cjs verify "$(dirname "$rpm_path")"
+expected_version=$(node -p "require('./package.json').version")
 test -f "$rpm_path"
 mkdir -p release/validation
 container="madeireira-rpm-check-$$"
@@ -9,11 +12,13 @@ trap 'podman rm -f "$container" >/dev/null 2>&1 || true' EXIT
 # Allow nested Chromium namespaces inside the container. The application itself
 # runs unprivileged, with its sandbox enabled, on a disposable X11 display.
 podman run --name "$container" --security-opt label=disable --security-opt seccomp=unconfined \
+  -e EXPECTED_VERSION="$expected_version" \
   -v "$rpm_path:/tmp/app.rpm:ro" \
   -v "$PWD/scripts:/checks:ro" \
   -v "$PWD/release/validation:/evidence" \
   registry.fedoraproject.org/fedora:44 bash -euxo pipefail -c '
     dnf install -y --setopt=install_weak_deps=False /tmp/app.rpm
+    test "$(rpm -q --queryformat "%{VERSION}-%{RELEASE}.%{ARCH}" madeireira-sol-nascente)" = "$EXPECTED_VERSION-1.x86_64"
     rpm -q madeireira-sol-nascente
     rpm -qR madeireira-sol-nascente > /evidence/requires.txt
     ldd "/opt/Madeireira Sol Nascente/madeireira-sol-nascente" > /evidence/ldd.txt

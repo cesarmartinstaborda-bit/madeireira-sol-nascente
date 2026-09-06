@@ -1,5 +1,5 @@
 FROM registry.fedoraproject.org/fedora:44
-RUN dnf install -y nodejs22 nodejs22-npm rpm-build ruby ruby-devel rubygems gcc make \
+RUN dnf install -y git nodejs22 nodejs22-npm rpm-build ruby ruby-devel rubygems gcc make \
     && gem install fpm -v 1.18.0 --no-document \
     && dnf clean all
 WORKDIR /work

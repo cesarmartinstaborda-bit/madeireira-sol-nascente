@@ -26,12 +26,13 @@ npm run dist:rpm:fedora
 ```
 
 Esse comando instala as dependências com `npm ci`, verifica TypeScript, executa
-os testes e gera o RPM em `release/`. Usa um volume separado para `node_modules`.
+os testes e gera o RPM em `release/`. Usa um volume anônimo separado para `node_modules` e gera checksum SHA-256 e
+metadados da versão. Para build **e** instalação validada: `npm run release:check`.
 
 Para compilar diretamente no Fedora:
 
 ```sh
-sudo dnf install nodejs22 nodejs22-npm rpm-build ruby ruby-devel rubygems gcc make
+sudo dnf install git nodejs22 nodejs22-npm rpm-build ruby ruby-devel rubygems gcc make
 sudo gem install fpm -v 1.18.0 --no-document
 npm ci
 npm run lint
@@ -47,7 +48,8 @@ A correção do FPM afeta apenas o empacotamento.
 Instalação no Fedora x86_64:
 
 ```sh
-sudo dnf install ./release/Madeireira-Sol-Nascente-1.0.0-x86_64.rpm
+rpm_path=$(node scripts/release.cjs path)
+sudo dnf install "$rpm_path"
 madeireira-sol-nascente
 ```
 
@@ -69,7 +71,8 @@ O AppImage é gerado somente quando solicitado por esse comando.
 
 ```sh
 npm run verify:rpm:fedora
-# Ou: bash scripts/verify-rpm-fedora.sh /caminho/pacote.rpm
+# Ou: bash scripts/verify-rpm-fedora.sh /caminho/pacote-da-versao-atual.rpm
+# Mantenha SHA256SUMS e release.json ao lado do RPM, com seu nome original.
 ```
 
 A validação instala o pacote via DNF em Fedora 44 limpo, verifica bibliotecas e
@@ -93,3 +96,9 @@ e a restauração de sessão por IPC em um perfil temporário sem credenciais.
 
 Referências da revisão: [versões oficiais](https://releases.electronjs.org/) e
 [mudanças de APIs do Electron](https://www.electronjs.org/docs/latest/breaking-changes).
+
+## Versionamento, releases e atualização
+
+Consulte [o guia de release](docs/RELEASE.md) para o fluxo SemVer → tag → CI →
+GitHub Releases, comandos da próxima versão e atualização explícita via DNF.
+O CI instala e valida o RPM em Fedora limpo antes de permitir publicação.

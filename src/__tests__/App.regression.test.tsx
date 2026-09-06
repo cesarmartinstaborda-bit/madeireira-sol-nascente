@@ -9,11 +9,13 @@ vi.mock('../utils/firebaseSync', () => ({
   checkAndSeedFirestoreIfEmpty: vi.fn().mockResolvedValue(false),
   upsertFirestoreRecord: cloud.upsert, deleteFirestoreRecord: vi.fn(),
   syncFirestoreSettings: cloud.settings, restoreFirestoreAuthoritatively: cloud.restore,
-  isFirebaseConfigured: () => false,
+  isFirebaseConfigured: () => true,
   getFirebaseSyncState: () => ({ isConfigured: false, status: 'NOT_CONFIGURED', lastSuccessfulSyncAt: null }),
   testFirebaseConnection: vi.fn().mockResolvedValue({ success: false, message: 'Sem conexão de teste' }),
 }));
-vi.mock('../utils/googleAuth', () => ({ getCurrentGoogleUser: () => null, initAuth: () => () => {}, googleSignIn: vi.fn(), googleSignOut: vi.fn(), getAccessToken: async () => null }));
+// Header continua deslogado (getCurrentGoogleUser → null); onFirebaseUser emite
+// um usuário só para o useKlabinDatabase liberar a assinatura do Firestore.
+vi.mock('../utils/googleAuth', () => ({ getCurrentGoogleUser: () => null, onFirebaseUser: (cb: any) => { cb({ uid: 'test-user', email: 'cesarmartinstaborda@gmail.com' }); return () => {}; }, initAuth: () => () => {}, googleSignIn: vi.fn(), googleSignOut: vi.fn(), getAccessToken: async () => null }));
 vi.mock('@/assets/icon.png', () => ({ default: '/test-icon.png' }));
 import App from '../App';
 import * as storage from '../utils/storage';
