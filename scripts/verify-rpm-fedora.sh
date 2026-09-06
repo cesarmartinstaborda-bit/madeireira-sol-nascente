@@ -18,6 +18,8 @@ podman run --name "$container" --security-opt label=disable --security-opt secco
   -v "$PWD/release/validation:/evidence" \
   registry.fedoraproject.org/fedora:44 bash -euxo pipefail -c '
     dnf install -y --setopt=install_weak_deps=False /tmp/app.rpm
+    # Reinstallation must not remove the executable link in the outgoing postun.
+    dnf reinstall -y --setopt=install_weak_deps=False /tmp/app.rpm
     test "$(rpm -q --queryformat "%{VERSION}-%{RELEASE}.%{ARCH}" madeireira-sol-nascente)" = "$EXPECTED_VERSION-1.x86_64"
     rpm -q madeireira-sol-nascente
     rpm -qR madeireira-sol-nascente > /evidence/requires.txt

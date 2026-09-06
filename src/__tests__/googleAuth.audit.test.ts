@@ -37,3 +37,12 @@ it('restauração silenciosa é única por execução e aceita refresh sem id_to
   expect(sdk.credential).toHaveBeenCalledWith(null, 'fake-restored');
   expect(await auth.getAccessToken()).toBe('fake-restored');
 });
+it('assinatura Firebase preserva a reconexão silenciosa local sem duplicar a restauração', async () => {
+  window.electron = { isElectron: true, googleSignIn: vi.fn(), googleClearSession: vi.fn(), googleRestoreSession: vi.fn().mockResolvedValue({ accessToken: 'fake-restored', idToken: null }) };
+  const auth = await import('../utils/googleAuth');
+  const stop = auth.onFirebaseUser(vi.fn());
+  await auth.restoreGoogleSession();
+  expect(window.electron.googleRestoreSession).toHaveBeenCalledOnce();
+  expect(sdk.signIn).toHaveBeenCalledOnce();
+  stop(); expect(sdk.stop).toHaveBeenCalledOnce();
+});

@@ -97,8 +97,11 @@
       ],
       "fpm": [
         "--iteration",
-        "1"
-      ]
+        "1",
+        "--rpm-posttrans",
+        "packaging/rpm-posttrans.sh"
+      ],
+      "afterRemove": "packaging/rpm-after-remove.sh"
     }
   },
   "allowScripts": {

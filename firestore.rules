@@ -6,32 +6,41 @@ service cloud.firestore {
       return id is string && id.size() > 0 && id.size() <= 128;
     }
 
+    function isVerifiedGoogle() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
     match /cargas/{cargaId} {
-      allow read, write: if true;
+      allow read, write: if isVerifiedGoogle();
     }
 
     match /depositos/{depositoId} {
-      allow read, write: if true;
+      allow read, write: if isVerifiedGoogle();
     }
 
     match /clientes/{clienteId} {
-      allow read, write: if true;
+      allow read, write: if isVerifiedGoogle();
     }
 
     match /vendas/{vendaId} {
-      allow read, write: if true;
+      allow read, write: if isVerifiedGoogle();
     }
 
     match /produtos/{produtoId} {
-      allow read, write: if true;
+      allow read, write: if isVerifiedGoogle();
     }
 
     match /motoristas/{motoristaId} {
-      allow read, write: if true;
+      allow read, write: if isVerifiedGoogle();
     }
 
     match /settings/{settingId} {
-      allow read, write: if true;
+      // O listener atual lista a coleção, mas só settings/global é gravado.
+      allow read: if isVerifiedGoogle();
+      allow create, update: if isVerifiedGoogle() && settingId == 'global';
+      allow delete: if false;
     }
 
     match /{document=**} {
