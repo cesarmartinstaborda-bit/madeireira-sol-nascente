@@ -83,6 +83,11 @@ export const Header: React.FC<HeaderProps> = ({
           title: 'Módulo Klabin',
           subtitle: 'Controle de Cargas Fornecidas e Depósitos de Adiantamento Klabin S.A.',
         };
+      case 'ProCabos':
+        return {
+          title: 'Módulo Pro Cabos',
+          subtitle: 'Cargas Klabin da Pro Cabos — valores em aberto e quitados',
+        };
       case 'Clientes_Produtos':
       case 'Gestao_Clientes':
       case 'Vendas':
@@ -115,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const { title, subtitle } = getTitleAndSubtitle();
-  const canExport = activeTable !== 'Dashboard' && activeTable !== 'Configuracoes' && activeTable !== 'Historico';
+  const canExport = activeTable !== 'Dashboard' && activeTable !== 'Configuracoes' && activeTable !== 'Historico' && activeTable !== 'ProCabos';
 
   return (
     <header className="mac-toolbar px-6 py-3.5 sticky top-0 z-10 select-none flex flex-col sm:flex-row sm:items-center justify-between gap-3">

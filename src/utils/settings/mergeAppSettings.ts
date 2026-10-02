@@ -17,7 +17,6 @@ export function mergeAppSettings(settings: AppSettings | undefined, newSettingsP
       ...(newSettingsPartial.klabin || {}),
     },
     freight: {
-      defaultCargoFreightPayable: true,
       defaultSaleFreightPayable: false,
       ...(settings?.freight || {}),
       ...(newSettingsPartial.freight || {}),

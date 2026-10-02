@@ -10,8 +10,6 @@ type Props = {
     | 'inactiveDriversCount'
     | 'handleSaveFreight'
     | 'setLocalFreightRate'
-    | 'defaultCargoFreightPayable'
-    | 'setDefaultCargoFreightPayable'
     | 'defaultSaleFreightPayable'
     | 'setDefaultSaleFreightPayable'
     | 'freightFeedback'
@@ -26,8 +24,6 @@ export function FreightSettingsPanel({ model }: Props) {
     inactiveDriversCount,
     handleSaveFreight,
     setLocalFreightRate,
-    defaultCargoFreightPayable,
-    setDefaultCargoFreightPayable,
     defaultSaleFreightPayable,
     setDefaultSaleFreightPayable,
     freightFeedback,
@@ -117,41 +113,7 @@ export function FreightSettingsPanel({ model }: Props) {
                 Preferências para novos lançamentos
               </h4>
 
-              {/* Toggle 1: Cargas default freight payable */}
-              <div className="flex items-start justify-between gap-4 p-4 bg-[#14171d] rounded-xl border border-[var(--graphite-border-subtle)]">
-                <div className="space-y-1 pr-4">
-                  <label
-                    htmlFor="toggle-cargo-freight"
-                    className="text-xs font-bold text-white cursor-pointer select-none"
-                  >
-                    Frete a pagar por padrão em novas Cargas
-                  </label>
-                  <p className="text-xs text-[var(--graphite-text-secondary)] leading-relaxed">
-                    Quando ativo, o campo "Frete a Pagar" iniciará marcado como SIM ao abrir o formulário de Nova Carga.
-                  </p>
-                </div>
-
-                <div className="shrink-0 pt-0.5">
-                  <button
-                    type="button"
-                    id="toggle-cargo-freight"
-                    role="switch"
-                    aria-checked={defaultCargoFreightPayable}
-                    onClick={() => setDefaultCargoFreightPayable(!defaultCargoFreightPayable)}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      defaultCargoFreightPayable ? 'bg-[var(--graphite-accent-blue)]' : 'bg-slate-700'
-                    }`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
-                        defaultCargoFreightPayable ? 'translate-x-5' : 'translate-x-0'
-                      }`}
-                    />
-                  </button>
-                </div>
-              </div>
-
-              {/* Toggle 2: Sales default freight payable */}
+              {/* Sales default freight payable */}
               <div className="flex items-start justify-between gap-4 p-4 bg-[#14171d] rounded-xl border border-[var(--graphite-border-subtle)]">
                 <div className="space-y-1 pr-4">
                   <label

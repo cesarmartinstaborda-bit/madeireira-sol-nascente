@@ -17,6 +17,7 @@ exports[`mantém normalização, campos legados, relações por nome e registros
       "id": "c1",
       "invoiceNumber": undefined,
       "motoristaId": "m1",
+      "proCabos": false,
       "product": "Pinus Teste",
       "productId": "p1",
       "quantityTons": 2,
@@ -98,7 +99,6 @@ exports[`mantém normalização, campos legados, relações por nome e registros
       "lockedMonths": [],
     },
     "freight": {
-      "defaultCargoFreightPayable": true,
       "defaultSaleFreightPayable": false,
     },
     "freightRatePerTon": 15,
@@ -129,6 +129,7 @@ exports[`mantém normalização, campos legados, relações por nome e registros
         "id": "c1",
         "invoiceNumber": undefined,
         "motoristaId": undefined,
+        "proCabos": false,
         "product": "Pinus Teste",
         "productId": undefined,
         "quantityTons": 2,
@@ -155,7 +156,6 @@ exports[`mantém normalização, campos legados, relações por nome e registros
         "lockedMonths": [],
       },
       "freight": {
-        "defaultCargoFreightPayable": true,
         "defaultSaleFreightPayable": false,
       },
       "freightRatePerTon": 15,

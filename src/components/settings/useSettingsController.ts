@@ -92,11 +92,6 @@ export function useSettingsController({
   const [localFreightRate, setLocalFreightRate] = useState<string>(
     formatBRLCurrencyInput(appSettings?.freightRatePerTon ?? freightRatePerTon ?? 15)
   );
-  const [defaultCargoFreightPayable, setDefaultCargoFreightPayable] = useState<boolean>(
-    appSettings?.freight?.defaultCargoFreightPayable !== undefined
-      ? appSettings.freight.defaultCargoFreightPayable
-      : true
-  );
   const [defaultSaleFreightPayable, setDefaultSaleFreightPayable] = useState<boolean>(
     appSettings?.freight?.defaultSaleFreightPayable !== undefined
       ? appSettings.freight.defaultSaleFreightPayable
@@ -171,9 +166,6 @@ export function useSettingsController({
       setLocalFreightRate(formatBRLCurrencyInput(appSettings.freightRatePerTon));
     }
 
-    if (appSettings?.freight?.defaultCargoFreightPayable !== undefined) {
-      setDefaultCargoFreightPayable(appSettings.freight.defaultCargoFreightPayable);
-    }
     if (appSettings?.freight?.defaultSaleFreightPayable !== undefined) {
       setDefaultSaleFreightPayable(appSettings.freight.defaultSaleFreightPayable);
     }
@@ -262,7 +254,6 @@ export function useSettingsController({
     const validRate = !isNaN(parsedRate) && parsedRate > 0 ? parsedRate : 15;
 
     const freightData: FreightSettings = {
-      defaultCargoFreightPayable,
       defaultSaleFreightPayable,
     };
 
@@ -375,8 +366,6 @@ export function useSettingsController({
     inactiveDriversCount,
     handleSaveFreight,
     setLocalFreightRate,
-    defaultCargoFreightPayable,
-    setDefaultCargoFreightPayable,
     defaultSaleFreightPayable,
     setDefaultSaleFreightPayable,
     freightFeedback,

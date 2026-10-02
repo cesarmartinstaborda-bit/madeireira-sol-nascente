@@ -1,5 +1,6 @@
 import { CargaRecord, VendaRecord, MotoristaRecord, AppSettings, KlabinDatabase } from '../types';
 import { compareDateValuesDescending, sortByDateDescending } from './dateSorting';
+import { isProCabosCarga } from './proCabos';
 
 export interface UnifiedFreightRecord {
   id: string;
@@ -106,7 +107,7 @@ export function getFreightRecords(database: {
   // 1. Process Cargas
   (database.Cargas || []).forEach((c) => {
     const hasFreight = c.freightPayable !== 'NO' && (c.freightPayable as any) !== false;
-    if (!hasFreight) return;
+    if (!hasFreight || isProCabosCarga(c)) return;
 
     const matched = findMatchedDriver(motoristas, c);
     const tons = Number(c.quantityTons) || 0;

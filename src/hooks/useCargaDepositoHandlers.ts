@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { KlabinDatabase, CargaRecord, DepositoKlabinRecord, TableType } from '../types';
 import { upsertFirestoreRecord, deleteFirestoreRecord } from '../utils/firebaseSync';
+import { isProCabosCarga } from '../utils/proCabos';
 
 interface UseCargaDepositoHandlersParams {
   database: KlabinDatabase;
-  mutateDatabase: (updater: (prev: KlabinDatabase) => KlabinDatabase) => void;
+  mutateDatabase: (updater: (prev: KlabinDatabase) => KlabinDatabase) => KlabinDatabase | void;
   showToast: (msg: string) => void;
   isDateLocked: (dateStr?: string) => boolean;
 }
@@ -43,6 +44,25 @@ export function useCargaDepositoHandlers({
       Cargas: prev.Cargas.map((c) => (c.id === updatedCarga.id ? updatedCarga : c)),
     }));
     upsertFirestoreRecord('cargas', updatedCarga);
+  };
+
+  /**
+   * Quitação da Pro Cabos. Não passa por `isDateLocked` de propósito: altera só a situação
+   * financeira da Pro Cabos, nunca os dados operacionais da carga, e a Pro Cabos pode pagar
+   * depois do fechamento do mês. Por isso recebe o id e a situação, não um registro inteiro.
+   */
+  const handleSetProCabosStatus = (id: string, status: 'PENDING' | 'PAID') => {
+    const current = database.Cargas.find((c) => c.id === id);
+    if (!current || !isProCabosCarga(current)) return;
+
+    const next = mutateDatabase((prev) => ({
+      ...prev,
+      Cargas: prev.Cargas.map((c) => (c.id === id && isProCabosCarga(c) ? { ...c, proCabosStatus: status } : c)),
+    }));
+    // O que vai para a nuvem é a carga resultante da mutação, não a do render: `database`
+    // pode estar defasado se outra alteração da mesma carga chegou antes do próximo render.
+    const updated = (next ? next.Cargas.find((c) => c.id === id) : undefined) ?? { ...current, proCabosStatus: status };
+    upsertFirestoreRecord('cargas', updated);
   };
 
   const handleUpdateDepositoRecord = (updatedDeposito: DepositoKlabinRecord) => {
@@ -142,6 +162,7 @@ export function useCargaDepositoHandlers({
 
   return {
     handleUpdateCargaRecord,
+    handleSetProCabosStatus,
     handleUpdateDepositoRecord,
     handleDeleteCarga,
     handleDeleteDeposito,

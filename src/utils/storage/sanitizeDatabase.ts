@@ -1,5 +1,6 @@
 import { AppSettings, KlabinDatabase } from '../../types';
 import { normalizeIsoDate, normalizeIsoTimestamp } from '../formatters';
+import { getProCabosLaborRate, isProCabosCarga } from '../proCabos';
 
 /**
  * Sanitizes the database object by removing corrupt/phantom entries from Cargas, Depositos, Clientes, Vendas, Produtos
@@ -122,12 +123,16 @@ export function sanitizeDatabase(rawDb: any): KlabinDatabase {
         c.deductFromBalance === 'SIM' ||
         c.deductFromBalance === undefined;
 
-      // Convert freightPayable to normalized boolean (default to true)
+      const isProCabos = isProCabosCarga(c);
+
+      // Convert freightPayable to normalized boolean (default to true).
+      // Pro Cabos nunca gera frete: a mão de obra já está na tarifa por tonelada.
       const freightBool =
-        c.freightPayable === true ||
-        c.freightPayable === 'YES' ||
-        c.freightPayable === 'SIM' ||
-        c.freightPayable === undefined;
+        !isProCabos &&
+        (c.freightPayable === true ||
+          c.freightPayable === 'YES' ||
+          c.freightPayable === 'SIM' ||
+          c.freightPayable === undefined);
 
       // Standardize freightStatus enum
       const freightStatus = c.freightStatus === 'PAID' ? 'PAID' : 'PENDING';
@@ -146,10 +151,22 @@ export function sanitizeDatabase(rawDb: any): KlabinDatabase {
 
       // Freight cost fallback enforcement
       let freightCost = c.freightCost !== undefined && c.freightCost !== null ? Number(c.freightCost) : NaN;
-      if (isNaN(freightCost)) {
+      if (isProCabos) {
+        freightCost = 0;
+      } else if (isNaN(freightCost)) {
         const rate = Number(rawDb?.appSettings?.freightRatePerTon) || 15;
         freightCost = freightBool ? Number((quantityTons * rate).toFixed(2)) : 0;
       }
+
+      // `proCabos: false` é sempre explícito: upsert e restauração gravam no Firestore com
+      // merge, então omitir o campo deixaria um `true` antigo sobreviver na nuvem.
+      const proCabosFields = isProCabos
+        ? {
+            proCabos: true,
+            proCabosLaborRatePerTon: getProCabosLaborRate(c),
+            proCabosStatus: c.proCabosStatus === 'PAID' ? 'PAID' : 'PENDING',
+          }
+        : { proCabos: false };
 
       // Relational driverId resolution
       let driverId = typeof c.driverId === 'string' ? c.driverId.trim() : (typeof c.motoristaId === 'string' ? c.motoristaId.trim() : '');
@@ -175,8 +192,12 @@ export function sanitizeDatabase(rawDb: any): KlabinDatabase {
       const createdAt = normalizeIsoTimestamp(c.createdAt || date);
       const freightPaidAt = c.freightPaidAt ? normalizeIsoTimestamp(c.freightPaidAt) : undefined;
 
+      // A situação da Pro Cabos só existe em carga Pro Cabos; um valor que sobrou de uma
+      // marcação desfeita (o Firestore grava com merge) não volta para o estado local.
+      const { proCabosStatus: _staleProCabosStatus, ...cargaWithoutProCabosStatus } = c;
+
       return {
-        ...c,
+        ...(isProCabos ? c : cargaWithoutProCabosStatus),
         supplier,
         invoiceNumber,
         product: String(c.product).trim(),
@@ -193,6 +214,7 @@ export function sanitizeDatabase(rawDb: any): KlabinDatabase {
         freightStatus,
         freightPaidAt,
         createdAt,
+        ...proCabosFields,
       };
     });
 
@@ -291,9 +313,6 @@ export function sanitizeDatabase(rawDb: any): KlabinDatabase {
     : true;
 
   const rawFreight = rawDb?.appSettings?.freight;
-  const defaultCargoFreightPayable = rawFreight?.defaultCargoFreightPayable !== undefined
-    ? Boolean(rawFreight.defaultCargoFreightPayable)
-    : true;
   const defaultSaleFreightPayable = rawFreight?.defaultSaleFreightPayable !== undefined
     ? Boolean(rawFreight.defaultSaleFreightPayable)
     : false;
@@ -330,7 +349,10 @@ export function sanitizeDatabase(rawDb: any): KlabinDatabase {
       defaultDeductFromBalance,
     },
     freight: {
-      defaultCargoFreightPayable,
+      // Legado: não é mais lido, mas um valor já gravado é mantido como está.
+      ...(rawFreight?.defaultCargoFreightPayable !== undefined
+        ? { defaultCargoFreightPayable: Boolean(rawFreight.defaultCargoFreightPayable) }
+        : {}),
       defaultSaleFreightPayable,
     },
     cycles: {

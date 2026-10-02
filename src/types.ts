@@ -1,6 +1,7 @@
 export type TableType =
   | 'Dashboard'
   | 'Klabin'
+  | 'ProCabos'
   | 'Clientes_Produtos'
   | 'Motoristas'
   | 'Historico'
@@ -36,6 +37,12 @@ export interface CargaRecord {
   freightPaidAt?: string;
   transactionKey?: string;
   deductFromBalance?: 'YES' | 'NO' | boolean;
+  /** Carga Klabin que também gera valor devido pela Pro Cabos. Ausente em cargas antigas = false. */
+  proCabos?: boolean;
+  /** Tarifa de mão de obra (R$/t) vigente quando a carga foi marcada como Pro Cabos. */
+  proCabosLaborRatePerTon?: number;
+  /** Situação do valor devido pela Pro Cabos. Ausente em carga Pro Cabos = em aberto. */
+  proCabosStatus?: 'PENDING' | 'PAID';
   notes?: string;
 }
 
@@ -132,6 +139,7 @@ export interface KlabinSettings {
 }
 
 export interface FreightSettings {
+  /** Legado: não é mais lido pelo app; mantido só para não descartar o valor já gravado. */
   defaultCargoFreightPayable?: boolean;
   defaultSaleFreightPayable?: boolean;
 }

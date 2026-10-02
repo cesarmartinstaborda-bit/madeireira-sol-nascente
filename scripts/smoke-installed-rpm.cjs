@@ -103,6 +103,8 @@ const deadline = setTimeout(() => { app.kill(); process.exit(1); }, 60000);
   }
   await visit('aside', 'Klabin', 'Registro de Cargas');
   await visit('main', 'Depósitos Klabin', 'Novo Depósito');
+  await visit('aside', 'Pro Cabos', 'Cargas em Aberto');
+  await visit('main', 'Quitados', 'Cargas Quitadas');
   await visit('aside', 'Clientes & Produtos', 'Lançamento de Vendas Diretas');
   await visit('main', 'Catálogo de Produtos', 'Novo Produto');
   await visit('aside', 'Gestão de Motoristas', 'Contas de Frete por Motorista');

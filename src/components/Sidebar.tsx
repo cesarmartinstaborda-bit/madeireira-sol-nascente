@@ -3,6 +3,7 @@ import { TableType } from '../types';
 import {
   LayoutDashboard,
   Building2,
+  Cable,
   Users,
   Truck,
   Settings,
@@ -23,6 +24,7 @@ interface SidebarProps {
     Vendas: number;
     Produtos: number;
     Historico: number;
+    ProCabos: number;
   };
   customLogo?: string;
   onUpdateCustomLogo: (logoBase64: string | undefined) => void;
@@ -59,6 +61,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sublabel: 'Cargas & Depósitos',
       icon: Building2,
       count: counts.Cargas + counts.Depositos_Klabin,
+    },
+    {
+      id: 'ProCabos',
+      label: 'Pro Cabos',
+      sublabel: 'Saldo Devedor & Cargas',
+      icon: Cable,
+      count: counts.ProCabos,
     },
     {
       id: 'Clientes_Produtos',

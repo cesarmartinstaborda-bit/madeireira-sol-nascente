@@ -17,7 +17,7 @@ const baseDatabase = () => ({
 
 function setup(locked = false) {
   let database = baseDatabase();
-  const mutateDatabase = vi.fn((updater: (prev: any) => any) => { database = updater(database); });
+  const mutateDatabase = vi.fn((updater: (prev: any) => any) => { database = updater(database); return database; });
   const showToast = vi.fn();
   const isDateLocked = vi.fn(() => locked);
   const hook = renderHook(() => useCargaDepositoHandlers({ database, mutateDatabase, showToast, isDateLocked }));
@@ -41,6 +41,51 @@ describe('useCargaDepositoHandlers', () => {
     expect(h.mutateDatabase).not.toHaveBeenCalled();
     expect(firebase.upsert).not.toHaveBeenCalled();
     expect(h.showToast).toHaveBeenCalledWith(expect.stringContaining('mês deste depósito está trancado'));
+  });
+
+  it('quitação da Pro Cabos funciona em mês fechado e altera só a situação; edição da carga segue bloqueada', () => {
+    const h = setup(true);
+    const proCabos = { id: 'pc1', date: '2026-08-20', quantityTons: 10, valuePerTon: 100, totalValue: 1000, proCabos: true, proCabosLaborRatePerTon: 115, proCabosStatus: 'PENDING' };
+    h.mutateDatabase((prev: any) => ({ ...prev, Cargas: [...prev.Cargas, proCabos] }));
+    h.rerender();
+    h.mutateDatabase.mockClear();
+
+    act(() => h.result.current.handleSetProCabosStatus('pc1', 'PAID'));
+    expect(h.getDatabase().Cargas[1]).toEqual({ ...proCabos, proCabosStatus: 'PAID' });
+    expect(h.getDatabase().Cargas[0]).toEqual(baseDatabase().Cargas[0]);
+    expect(firebase.upsert).toHaveBeenCalledWith('cargas', { ...proCabos, proCabosStatus: 'PAID' });
+    expect(h.showToast).not.toHaveBeenCalled();
+
+    h.rerender();
+    firebase.upsert.mockClear();
+    act(() => h.result.current.handleUpdateCargaRecord({ ...proCabos, quantityTons: 99 } as any));
+    expect(h.getDatabase().Cargas[1].quantityTons).toBe(10);
+    expect(firebase.upsert).not.toHaveBeenCalled();
+    expect(h.showToast).toHaveBeenCalledWith(expect.stringContaining('trancado'));
+  });
+
+  it('quitação da Pro Cabos envia à nuvem a carga já atualizada, mesmo se o render estiver defasado', () => {
+    const h = setup();
+    const proCabos = { id: 'pc1', date: '2026-08-20', quantityTons: 10, valuePerTon: 100, totalValue: 1000, deductFromBalance: 'YES', proCabos: true, proCabosLaborRatePerTon: 115, proCabosStatus: 'PENDING' };
+    h.mutateDatabase((prev: any) => ({ ...prev, Cargas: [...prev.Cargas, proCabos] }));
+    h.rerender();
+
+    // Duas alterações da mesma carga no mesmo tick, sem render entre elas.
+    act(() => {
+      h.result.current.handleUpdateCargaRecord({ ...proCabos, deductFromBalance: 'NO' } as any);
+      h.result.current.handleSetProCabosStatus('pc1', 'PAID');
+    });
+    expect(h.getDatabase().Cargas[1]).toMatchObject({ deductFromBalance: 'NO', proCabosStatus: 'PAID' });
+    expect(firebase.upsert).toHaveBeenLastCalledWith('cargas', expect.objectContaining({ id: 'pc1', deductFromBalance: 'NO', proCabosStatus: 'PAID' }));
+  });
+
+  it('quitação da Pro Cabos ignora carga que não é Pro Cabos ou não existe', () => {
+    const h = setup();
+    act(() => h.result.current.handleSetProCabosStatus('c1', 'PAID'));
+    act(() => h.result.current.handleSetProCabosStatus('inexistente', 'PAID'));
+    expect(h.mutateDatabase).not.toHaveBeenCalled();
+    expect(firebase.upsert).not.toHaveBeenCalled();
+    expect(h.getDatabase().Cargas[0]).not.toHaveProperty('proCabosStatus');
   });
 
   it('só exclui carga após confirmação e permite cancelar', () => {

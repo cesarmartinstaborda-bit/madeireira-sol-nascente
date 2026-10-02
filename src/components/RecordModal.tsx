@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { TableType, ProdutoRecord, ClientRecord, MotoristaRecord } from '../types';
 import { generateId } from '../utils/idGenerator';
 import { formatBRLCurrencyInput, formatCurrency, parseBRLCurrency } from '../utils/formatters';
+import { PRO_CABOS_LABOR_RATE_PER_TON, calcProCabosAmountDue, getProCabosLaborRate, isProCabosCarga } from '../utils/proCabos';
 import { X, Save, AlertCircle } from 'lucide-react';
 
 interface RecordModalProps {
@@ -16,7 +17,6 @@ interface RecordModalProps {
   motoristas: MotoristaRecord[];
   freightRatePerTon: number;
   defaultDeductFromBalance?: boolean;
-  defaultCargoFreightPayable?: boolean;
 }
 
 export const RecordModal: React.FC<RecordModalProps> = ({
@@ -30,7 +30,6 @@ export const RecordModal: React.FC<RecordModalProps> = ({
   motoristas,
   freightRatePerTon,
   defaultDeductFromBalance = true,
-  defaultCargoFreightPayable = true,
 }) => {
   const isDeposito = tableType === 'Depositos_Klabin';
 
@@ -44,9 +43,9 @@ export const RecordModal: React.FC<RecordModalProps> = ({
   const [valuePerTon, setValuePerTon] = useState('');
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [driverPlate, setDriverPlate] = useState('');
-  const [freightPayable, setFreightPayable] = useState<'YES' | 'NO'>('YES');
   const [freightCost, setFreightCost] = useState('');
   const [deductFromBalance, setDeductFromBalance] = useState<'YES' | 'NO'>('YES');
+  const [proCabos, setProCabos] = useState(false);
 
   // Depósito fields
   const [value, setValue] = useState('10000');
@@ -88,12 +87,12 @@ export const RecordModal: React.FC<RecordModalProps> = ({
       setSelectedDriverId(matchedDriver?.id || dId || '');
       setDriverPlate(recordToEdit.driverPlate || (matchedDriver ? `${matchedDriver.name} / ${matchedDriver.licensePlate}` : ''));
 
-      if (recordToEdit.freightPayable) setFreightPayable(recordToEdit.freightPayable === 'NO' ? 'NO' : 'YES');
-      if (recordToEdit.freightCost !== undefined && recordToEdit.freightCost !== null) {
+      // Custo zerado ou ausente (carga que estava sem frete) mostra a tarifa que será gravada se houver motorista.
+      if (Number(recordToEdit.freightCost) > 0) {
         setFreightCost(formatBRLCurrencyInput(recordToEdit.freightCost));
       } else {
         const t = parseFloat(recordToEdit.quantityTons) || 0;
-        setFreightCost(String(t * freightRatePerTon));
+        setFreightCost(formatBRLCurrencyInput(t * freightRatePerTon));
       }
       if (recordToEdit.deductFromBalance !== undefined && recordToEdit.deductFromBalance !== null) {
         const isDeduct = recordToEdit.deductFromBalance === 'YES' || recordToEdit.deductFromBalance === true;
@@ -101,6 +100,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
       } else {
         setDeductFromBalance('YES');
       }
+      setProCabos(isProCabosCarga(recordToEdit));
 
       if (recordToEdit.value !== undefined) setValue(formatBRLCurrencyInput(recordToEdit.value));
       if (recordToEdit.notes) setNotes(recordToEdit.notes);
@@ -124,14 +124,18 @@ export const RecordModal: React.FC<RecordModalProps> = ({
       setSelectedDriverId('');
       setDriverPlate('');
 
-      const shouldPayFreight = defaultCargoFreightPayable !== false;
-      setFreightPayable(shouldPayFreight ? 'YES' : 'NO');
-      setFreightCost(formatBRLCurrencyInput(shouldPayFreight ? 40 * freightRatePerTon : 0));
+      setFreightCost(formatBRLCurrencyInput(40 * freightRatePerTon));
       setDeductFromBalance(defaultDeductFromBalance ? 'YES' : 'NO');
+      setProCabos(false);
       setValue('');
       setNotes('');
     }
-  }, [recordToEdit, produtos, motoristas, freightRatePerTon, defaultDeductFromBalance, defaultCargoFreightPayable]);
+  }, [recordToEdit, produtos, motoristas, freightRatePerTon, defaultDeductFromBalance]);
+
+  // O modal não desmonta ao fechar: sem isto, uma marcação cancelada reapareceria na próxima abertura.
+  useEffect(() => {
+    if (isOpen) setProCabos(isProCabosCarga(recordToEdit));
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -188,6 +192,29 @@ export const RecordModal: React.FC<RecordModalProps> = ({
     }
   }
 
+  // O frete da carga depende só de haver motorista (cadastrado ou avulso); Pro Cabos nunca gera frete.
+  const hasDriver = Boolean(selectedDriverId || driverPlate.trim());
+  const hasFreight = hasDriver && !proCabos;
+
+  // Uma carga que já era Pro Cabos mantém a tarifa gravada nela; só uma marcação nova usa a tarifa vigente.
+  const proCabosLaborRate = isProCabosCarga(recordToEdit)
+    ? getProCabosLaborRate(recordToEdit)
+    : PRO_CABOS_LABOR_RATE_PER_TON;
+  const proCabosAmountDue = calcProCabosAmountDue({
+    quantityTons: parseFloat(quantityTons) || 0,
+    valuePerTon: parseBRLCurrency(valuePerTon) || 0,
+    proCabos: true,
+    proCabosLaborRatePerTon: proCabosLaborRate,
+  });
+
+  // Ao desmarcar, o custo volta à tarifa para que a tela mostre exatamente o que será salvo.
+  const handleProCabosChange = (checked: boolean) => {
+    setProCabos(checked);
+    if (!checked) {
+      setFreightCost(formatBRLCurrencyInput((parseFloat(quantityTons) || 0) * freightRatePerTon));
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -213,10 +240,22 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         return;
       }
 
+      // Salvar sem frete (sem motorista ou como Pro Cabos) uma carga cujo frete já foi quitado
+      // faria o pagamento sumir do histórico do motorista.
+      const hadPaidFreight =
+        recordToEdit?.freightStatus === 'PAID' &&
+        recordToEdit.freightPayable !== false &&
+        recordToEdit.freightPayable !== 'NO' &&
+        Number(recordToEdit.freightCost) > 0;
+      if (hadPaidFreight && !hasFreight) {
+        alert('O frete desta carga já foi pago ao motorista. Reverta o pagamento do frete antes de salvá-la sem motorista ou como Pro Cabos.');
+        return;
+      }
+
       const tons = parseFloat(quantityTons) || 0;
       const vPerTon = parseBRLCurrency(valuePerTon) || 0;
       const totalVal = tons * vPerTon;
-      const fCost = freightPayable === 'YES' ? parseBRLCurrency(freightCost) || (tons * freightRatePerTon) : 0;
+      const fCost = hasFreight ? parseBRLCurrency(freightCost) || (tons * freightRatePerTon) : 0;
 
       // Extract driver info if selected
       const matchedDriver =
@@ -243,12 +282,21 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         licensePlate: matchedDriver?.licensePlate || undefined,
         driverId: matchedDriver?.id || selectedDriverId || undefined,
         motoristaId: matchedDriver?.id || selectedDriverId || undefined,
-        freightPayable,
+        freightPayable: hasFreight ? 'YES' : 'NO',
         freightCost: fCost,
         freightStatus: recordToEdit?.freightStatus || 'PENDING',
         freightPaidAt: recordToEdit?.freightPaidAt,
         transactionKey: recordToEdit?.transactionKey,
         deductFromBalance,
+        proCabos,
+        // Uma marcação nova começa em aberto; a edição de carga já Pro Cabos mantém a situação dela.
+        ...(proCabos
+          ? {
+              proCabosLaborRatePerTon: proCabosLaborRate,
+              proCabosStatus:
+                isProCabosCarga(recordToEdit) && recordToEdit.proCabosStatus === 'PAID' ? 'PAID' : 'PENDING',
+            }
+          : {}),
         notes: notes.trim(),
       });
 
@@ -422,32 +470,36 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                 )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Frete a Pagar?</label>
-                  <select
-                    value={freightPayable}
-                    onChange={(e) => setFreightPayable(e.target.value as any)}
-                    className="w-full px-3 py-2 bg-[#12151a] border border-[var(--graphite-border-base)] rounded-xl text-white focus:outline-none focus:border-[var(--graphite-accent-blue)]"
-                  >
-                    <option value="YES">SIM</option>
-                    <option value="NO">NÃO (Sem Frete)</option>
-                  </select>
-                </div>
+              <label className="flex items-start gap-2.5 px-3 py-2 bg-[var(--graphite-surface-2)] border border-[var(--graphite-border-subtle)] rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={proCabos}
+                  onChange={(e) => handleProCabosChange(e.target.checked)}
+                  className="mt-0.5 accent-[var(--graphite-accent-blue)]"
+                />
+                <span>
+                  <span className="block text-slate-200 font-semibold">Carga da Pro Cabos</span>
+                  {proCabos && (
+                    <span className="block text-slate-400 mt-0.5">
+                      Valor devido pela Pro Cabos: {formatCurrency(proCabosAmountDue)} (inclui mão de obra de{' '}
+                      {formatCurrency(proCabosLaborRate)}/t). Sem frete a pagar ao motorista.
+                    </span>
+                  )}
+                </span>
+              </label>
 
-                {freightPayable === 'YES' && (
-                  <div>
-                    <label className="block text-slate-300 font-semibold mb-1">Custo Frete (R$)</label>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={freightCost}
-                      onChange={(e) => setFreightCost(e.target.value)}
-                      className="w-full px-3 py-2 bg-[#12151a] border border-[var(--graphite-border-base)] rounded-xl text-blue-400 font-mono font-bold focus:outline-none focus:border-[var(--graphite-accent-blue)]"
-                    />
-                  </div>
-                )}
-              </div>
+              {hasFreight && (
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Custo Frete (R$)</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={freightCost}
+                    onChange={(e) => setFreightCost(e.target.value)}
+                    className="w-full px-3 py-2 bg-[#12151a] border border-[var(--graphite-border-base)] rounded-xl text-blue-400 font-mono font-bold focus:outline-none focus:border-[var(--graphite-accent-blue)]"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">Abater do Saldo Klabin?</label>

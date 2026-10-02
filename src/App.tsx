@@ -6,6 +6,7 @@ import { DashboardOverview } from './components/DashboardOverview';
 import { Header } from './components/Header';
 import { HistoricoDashboard } from './components/HistoricoDashboard';
 import { KlabinDashboard } from './components/KlabinDashboard';
+import { ProCabosDashboard } from './components/ProCabosDashboard';
 import { RecordModal } from './components/RecordModal';
 import { Sidebar } from './components/Sidebar';
 import { TableCaixa } from './components/TableCaixa';
@@ -23,6 +24,7 @@ import { exportActiveTable } from './utils/exports/exportActiveTable';
 import { restoreFirestoreAuthoritatively, syncFirestoreSettings, } from './utils/firebaseSync';
 import { formatMonthYearBR, isMonthLocked } from './utils/formatters';
 import { splitKlabinRecordsByCompetency } from './utils/klabinBalance';
+import { splitProCabosCargas } from './utils/proCabos';
 import { mergeAppSettings } from './utils/settings/mergeAppSettings';
 import { createAutoBackup, saveDatabase, validateAndSanitizeBackupJSON } from './utils/storage';
 
@@ -33,7 +35,7 @@ export default function App() {
       const pref = localStorage.getItem('app_startup_preference');
       if (pref === 'LAST_USED') {
         const last = localStorage.getItem('app_last_active_table') as TableType;
-        const validModules: TableType[] = ['Dashboard', 'Klabin', 'Clientes_Produtos', 'Motoristas', 'Historico', 'Configuracoes'];
+        const validModules: TableType[] = ['Dashboard', 'Klabin', 'ProCabos', 'Clientes_Produtos', 'Motoristas', 'Historico', 'Configuracoes'];
         if (last && validModules.includes(last)) {
           return last;
         }
@@ -157,7 +159,7 @@ export default function App() {
     setSearchTerm('');
 
     try {
-      const validModules: TableType[] = ['Dashboard', 'Klabin', 'Clientes_Produtos', 'Motoristas', 'Historico', 'Configuracoes'];
+      const validModules: TableType[] = ['Dashboard', 'Klabin', 'ProCabos', 'Clientes_Produtos', 'Motoristas', 'Historico', 'Configuracoes'];
       if (validModules.includes(targetMainModule)) {
         localStorage.setItem('app_last_active_table', targetMainModule);
       }
@@ -184,6 +186,7 @@ export default function App() {
   // CARGAS & DEPOSITOS HANDLERS
   const {
     handleUpdateCargaRecord,
+    handleSetProCabosStatus,
     handleUpdateDepositoRecord,
     handleDeleteCarga,
     handleDeleteDeposito,
@@ -279,7 +282,7 @@ export default function App() {
 
   // Export CSV for active table
   const handleExportCSV = () => {
-    if (activeTable === 'Dashboard' || activeTable === 'Historico') return;
+    if (activeTable === 'Dashboard' || activeTable === 'Historico' || activeTable === 'ProCabos') return;
 
     exportActiveTable(activeTable, klabinSubTab, database, computedMetrics);
     showToast(`Arquivo CSV exportado com sucesso.`);
@@ -330,6 +333,7 @@ export default function App() {
           Vendas: database.Vendas?.length || 0,
           Produtos: database.Produtos?.length || 0,
           Historico: closedCargas.length + closedDepositos.length,
+          ProCabos: splitProCabosCargas(database.Cargas).open.length,
         }}
         customLogo={database.customLogo}
         onUpdateCustomLogo={handleUpdateCustomLogo}
@@ -379,6 +383,15 @@ export default function App() {
               initialSubTab={klabinSubTab}
               appSettings={database.appSettings}
               customLogo={database.customLogo}
+            />
+          )}
+
+          {activeTable === 'ProCabos' && (
+            <ProCabosDashboard
+              cargas={database.Cargas}
+              searchTerm={searchTerm}
+              lockedMonths={lockedMonths}
+              onSetProCabosStatus={handleSetProCabosStatus}
             />
           )}
 
@@ -489,7 +502,6 @@ export default function App() {
         motoristas={database.Motoristas || []}
         freightRatePerTon={database.appSettings?.freightRatePerTon || 15}
         defaultDeductFromBalance={database.appSettings?.klabin?.defaultDeductFromBalance ?? true}
-        defaultCargoFreightPayable={database.appSettings?.freight?.defaultCargoFreightPayable ?? true}
       />
 
       {/* Delete Confirmation Modal */}

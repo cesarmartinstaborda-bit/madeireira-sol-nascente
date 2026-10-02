@@ -2,6 +2,7 @@ import React from 'react';
 import { CargaRecord, ProdutoRecord, MotoristaRecord } from '../types';
 import { formatCurrency, formatNumber, formatDateBR } from '../utils/formatters';
 import { isDeductedFromBalance } from '../utils/klabinBalance';
+import { isProCabosCarga } from '../utils/proCabos';
 import { Truck, Edit2, Trash2, Plus, Lock } from 'lucide-react';
 import { sortByDateDescending } from '../utils/dateSorting';
 
@@ -106,7 +107,14 @@ export const TableCargas: React.FC<TableCargasProps> = ({
                           <span>{formatDateBR(r.date)}</span>
                         </div>
                       </td>
-                      <td className="py-2.5 px-3 font-semibold text-white">{r.supplier || 'Klabin'}</td>
+                      <td className="py-2.5 px-3 font-semibold text-white">
+                        {r.supplier || 'Klabin'}
+                        {isProCabosCarga(r) && (
+                          <span className="ml-1.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-950/80 text-amber-300 border border-amber-800">
+                            Pro Cabos
+                          </span>
+                        )}
+                      </td>
                       <td className="py-2.5 px-3 text-slate-300">{r.product || '-'}</td>
                       <td className="py-2.5 px-3 text-right font-bold text-slate-200 font-mono">{formatNumber(r.quantityTons, 2)}</td>
                       <td className="py-2.5 px-3 text-right text-slate-400 font-mono">{formatCurrency(r.valuePerTon)}</td>
