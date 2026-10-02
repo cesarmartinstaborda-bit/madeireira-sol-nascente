@@ -85,7 +85,10 @@ export function useClienteVendaHandlers({
       return;
     }
 
+    // O formulário também envia produto, frete e motorista; montar a venda só com os campos
+    // básicos fazia uma venda nova com "Frete a Pagar: SIM" ser gravada sem frete.
     const newVenda: VendaRecord = {
+      ...vendaData,
       id: generateId('vnd'),
       date: vDate,
       clientId: vendaData.clientId || 'cli-general',

@@ -1,5 +1,8 @@
 /// <reference types="vite/client" />
 
+/** Versão do `package.json`, injetada pelo Vite no build. Ausente nos testes. */
+declare const __APP_VERSION__: string | undefined;
+
 interface GoogleSignInTokens {
   idToken: string;
   accessToken: string;

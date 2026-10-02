@@ -13,6 +13,8 @@ type Props = {
   >;
 };
 
+const APP_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
+
 export function ApplicationSettingsPanel({ model }: Props) {
   const {
     activeTab,
@@ -61,7 +63,7 @@ export function ApplicationSettingsPanel({ model }: Props) {
                   Versão da Aplicação
                 </span>
                 <span className="text-xs font-bold text-white font-mono block">
-                  v0.0.0
+                  v{APP_VERSION}
                 </span>
               </div>
 
@@ -188,7 +190,7 @@ export function ApplicationSettingsPanel({ model }: Props) {
             </div>
 
             <div className="text-xs text-slate-400 font-mono bg-[#12151a] px-3.5 py-1.5 rounded-lg border border-[var(--graphite-border-subtle)] self-start md:self-auto">
-              Versão 0.0.0 • Madeireira V3
+              Versão {APP_VERSION} • Madeireira V3
             </div>
           </div>
         </div>

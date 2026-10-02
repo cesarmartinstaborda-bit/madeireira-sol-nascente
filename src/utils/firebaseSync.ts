@@ -191,6 +191,23 @@ function writePendingFirestoreUpserts(items: PendingFirestoreUpsert[]): void {
   }
 }
 
+/**
+ * O Firestore rejeita `undefined` em qualquer nível. As configurações têm campos opcionais
+ * aninhados (ex.: `appSettings.company.cnpj`) que a sanitização deixa como `undefined`;
+ * sem esta limpeza a gravação de `settings/global` falhava sempre.
+ */
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => stripUndefinedDeep(item)) as unknown as T;
+  if (value && typeof value === 'object' && Object.getPrototypeOf(value) === Object.prototype) {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, item]) => item !== undefined)
+        .map(([key, item]) => [key, stripUndefinedDeep(item)])
+    ) as T;
+  }
+  return value;
+}
+
 function cleanFirestoreRecord(record: Record<string, any>): Record<string, any> {
   return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
 }
@@ -335,7 +352,7 @@ export async function syncFirestoreSettings(settings: {
     if (settings.customLogo !== undefined) cleanSettings.customLogo = settings.customLogo;
 
     const docRef = doc(firestore, 'settings', 'global');
-    await setDoc(docRef, cleanSettings, { merge: true });
+    await setDoc(docRef, stripUndefinedDeep(cleanSettings), { merge: true });
   } catch (error) {
     console.error('[Firestore Error] sync settings/global:', error);
   }
@@ -685,7 +702,7 @@ export async function restoreFirestoreAuthoritatively(
       type: 'set',
       colKey: 'settings',
       docId: 'global',
-      data: cleanSettings,
+      data: stripUndefinedDeep(cleanSettings),
     });
 
     // 3. Execute queued operations in batches of max 400 (Firestore limit is 500)

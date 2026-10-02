@@ -55,6 +55,19 @@ it('cria, edita e exclui cliente e venda mantendo totais e demais registros', ()
   expect(result.current.database.Clientes).toEqual(regressionDatabase().Clientes);
   expect(cloud.remove.mock.calls).toEqual([['vendas', sale.id], ['clientes', client.id]]);
 });
+it('venda nova com frete mantém produto, frete e motorista, localmente e na nuvem', () => {
+  const { result } = setup();
+  act(() => result.current.handleAddVenda({ date: '2026-09-01', clientId: 'cl1', clientName: 'Cliente Teste', product: 'Pinus Teste', productId: 'p1', unitOfMeasure: 'ton', quantity: 2, unitPrice: 200, totalValue: 400, notes: 'com frete', freightPayable: 'YES', freightCost: 30, freightStatus: 'PENDING', driverId: 'm1', motoristaId: 'm1', driverPlate: 'Motorista Teste / ABC-1234', licensePlate: 'ABC-1234' }));
+  const sale = result.current.database.Vendas!.at(-1)!;
+  expect(sale).toMatchObject({ productId: 'p1', totalValue: 400, status: 'PENDING', freightPayable: 'YES', freightCost: 30, freightStatus: 'PENDING', driverId: 'm1', licensePlate: 'ABC-1234' });
+  expect(sale.id).toMatch(/^vnd-/);
+  expect(cloud.upsert).toHaveBeenLastCalledWith('vendas', expect.objectContaining({ id: sale.id, freightPayable: 'YES', freightCost: 30, driverId: 'm1' }));
+});
+it('venda nova nunca reaproveita o id recebido', () => {
+  const { result } = setup();
+  act(() => result.current.handleAddVenda({ id: 'v1', date: '2026-09-01', clientId: 'cl1', clientName: 'Cliente Teste', product: 'Pinus Teste', quantity: 1, unitPrice: 100 } as any));
+  expect(result.current.database.Vendas!.map((v) => v.id).filter((id) => id === 'v1')).toHaveLength(1);
+});
 it('mês fechado bloqueia criação, edição, exclusão e quitação de venda sem escrita remota', () => {
   const { result } = setup(true);
   const before = result.current.database;
