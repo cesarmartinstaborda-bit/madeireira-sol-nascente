@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { CargaRecord, DepositoKlabinRecord, ProdutoRecord, MotoristaRecord, AppSettings } from '../types';
 import { TableCargas } from './TableCargas';
 import { TableDepositos } from './TableDepositos';
-import { Truck, Building2, FileText } from 'lucide-react';
+import { Truck, Building2, FileText, Wallet } from 'lucide-react';
 import { generateKlabinStatementPdf } from '../utils/pdfGenerator';
+import { formatCurrency } from '../utils/formatters';
+import { calcKlabinBalance } from '../utils/klabinBalance';
 
 interface KlabinDashboardProps {
   cargasRecords: CargaRecord[];
@@ -54,6 +56,13 @@ export const KlabinDashboard: React.FC<KlabinDashboardProps> = ({
 
   const currentSubTab = controlledSubTab !== undefined ? controlledSubTab : internalSubTab;
 
+  // Mesma regra de cálculo do saldo usada no Header, no Dashboard e no PDF do Klabin —
+  // aqui é só a exibição de um resumo único, não uma nova regra de negócio.
+  const { saldo } = useMemo(
+    () => calcKlabinBalance({ cargas: cargasRecords, depositos: depositosRecords }),
+    [cargasRecords, depositosRecords]
+  );
+
   const handleSubTabSwitch = (tab: 'CARGAS' | 'DEPOSITOS') => {
     if (controlledSubTab === undefined) {
       setInternalSubTab(tab);
@@ -74,6 +83,21 @@ export const KlabinDashboard: React.FC<KlabinDashboardProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Resumo único do módulo: saldo livre Klabin */}
+      <div className="glass-card p-4 flex items-center space-x-3">
+        <div className="p-2.5 bg-[#232832] text-emerald-400 rounded-xl border border-[var(--graphite-border-subtle)]">
+          <Wallet className="w-5 h-5" />
+        </div>
+        <div>
+          <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider block">
+            Saldo Livre Klabin
+          </span>
+          <span className={`text-lg font-bold font-mono ${saldo >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+            {formatCurrency(saldo)}
+          </span>
+        </div>
+      </div>
+
       {/* Graphite Pro macOS Segmented Control */}
       <div className="flex items-center justify-between border-b border-[var(--graphite-border-subtle)] pb-4">
         <div className="mac-segmented-control">

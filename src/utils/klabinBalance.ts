@@ -1,4 +1,5 @@
 import { CargaRecord, DepositoKlabinRecord } from '../types';
+import { isMonthLocked } from './formatters';
 
 /**
  * Single source of truth for the Klabin balance: depósitos recebidos - cargas abatidas.
@@ -46,4 +47,53 @@ export function calcKlabinBalance(input: {
     totalAbatido,
     saldo: totalDepositos - totalAbatido,
   };
+}
+
+export interface OpenClosedKlabinRecords {
+  openCargas: CargaRecord[];
+  closedCargas: CargaRecord[];
+  openDepositos: DepositoKlabinRecord[];
+  closedDepositos: DepositoKlabinRecord[];
+}
+
+/**
+ * Single source of truth for which Klabin records belong to an open
+ * competency vs. a closed one (`appSettings.cycles.lockedMonths`). "Saldo
+ * Livre Klabin" is defined over open competencies only — closed competencies
+ * belong to Histórico. Every consumer of that balance must derive its input
+ * records from this split rather than re-filtering independently.
+ */
+export function splitKlabinRecordsByCompetency(
+  cargas: CargaRecord[],
+  depositos: DepositoKlabinRecord[],
+  lockedMonths: string[]
+): OpenClosedKlabinRecords {
+  const openCargas: CargaRecord[] = [];
+  const closedCargas: CargaRecord[] = [];
+  (cargas || []).forEach((c) =>
+    (isMonthLocked(c.date, lockedMonths) ? closedCargas : openCargas).push(c)
+  );
+
+  const openDepositos: DepositoKlabinRecord[] = [];
+  const closedDepositos: DepositoKlabinRecord[] = [];
+  (depositos || []).forEach((d) =>
+    (isMonthLocked(d.date, lockedMonths) ? closedDepositos : openDepositos).push(d)
+  );
+
+  return { openCargas, closedCargas, openDepositos, closedDepositos };
+}
+
+/**
+ * "Saldo Livre Klabin" — the current, spendable balance. Always computed over
+ * open-competency records only; this is the only function that should feed
+ * that indicator anywhere in the app (Header, card, Configurações, PDF de
+ * extrato, relatório consolidado).
+ */
+export function calcOpenKlabinBalance(
+  cargas: CargaRecord[],
+  depositos: DepositoKlabinRecord[],
+  lockedMonths: string[]
+): KlabinBalance {
+  const { openCargas, openDepositos } = splitKlabinRecordsByCompetency(cargas, depositos, lockedMonths);
+  return calcKlabinBalance({ cargas: openCargas, depositos: openDepositos });
 }

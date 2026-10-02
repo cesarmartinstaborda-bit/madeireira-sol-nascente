@@ -19,7 +19,7 @@ import {
   renderBrandFooter,
 } from './pdfVisualStyle';
 import { sortByDateDescending } from './dateSorting';
-import { calcKlabinBalance } from './klabinBalance';
+import { calcOpenKlabinBalance } from './klabinBalance';
 import { getPendingFreightTotal, getPaidFreightTotal } from './freightUtils';
 
 const SECTION_TITLE_COLOR = PDF_BRAND.brown;
@@ -151,10 +151,16 @@ export function generateConsolidatedReportPdf(database: KlabinDatabase): {
     (a.name || '').localeCompare(b.name || '', 'pt-BR')
   );
 
-  const { totalDepositos, totalAbatido, saldo: saldoLivre } = calcKlabinBalance({
+  // "SALDO LIVRE KLABIN" (and its breakdown) reflects open competencies only —
+  // same rule as everywhere else in the app. `cargas`/`depositos` above stay
+  // whole-database for the itemized tables and counts further down; only this
+  // KPI figure is scoped to open competencies.
+  const lockedMonths = database.appSettings?.cycles?.lockedMonths || [];
+  const { totalDepositos, totalAbatido, saldo: saldoLivre } = calcOpenKlabinBalance(
     cargas,
     depositos,
-  });
+    lockedMonths
+  );
   const totalVolumeTons = cargas.reduce((acc, c) => acc + (Number(c.quantityTons) || 0), 0);
   const totalFretesPending = getPendingFreightTotal(database);
   const totalFretesPaid = getPaidFreightTotal(database);

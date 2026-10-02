@@ -3,6 +3,7 @@ export type TableType =
   | 'Klabin'
   | 'Clientes_Produtos'
   | 'Motoristas'
+  | 'Historico'
   | 'Configuracoes'
   | 'Cargas'
   | 'Depositos_Klabin'

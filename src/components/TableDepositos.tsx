@@ -12,6 +12,8 @@ interface TableDepositosProps {
   onDelete: (id: string) => void;
   onAdd: () => void;
   lockedMonths?: string[];
+  /** Hides the "Novo Depósito" action — used by the Histórico view over closed competencies. */
+  readOnly?: boolean;
 }
 
 export const TableDepositos: React.FC<TableDepositosProps> = ({
@@ -21,6 +23,7 @@ export const TableDepositos: React.FC<TableDepositosProps> = ({
   onDelete,
   onAdd,
   lockedMonths = [],
+  readOnly = false,
 }) => {
   const filtered = sortByDateDescending(records.filter((r) => {
     if (!searchTerm) return true;
@@ -57,13 +60,15 @@ export const TableDepositos: React.FC<TableDepositosProps> = ({
             <Building2 className="w-4 h-4 text-emerald-400" />
             <span>Depósitos Klabin ({filtered.length})</span>
           </h2>
-          <button
-            onClick={onAdd}
-            className="mac-button-primary"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Novo Depósito</span>
-          </button>
+          {!readOnly && (
+            <button
+              onClick={onAdd}
+              className="mac-button-primary"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Novo Depósito</span>
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto">

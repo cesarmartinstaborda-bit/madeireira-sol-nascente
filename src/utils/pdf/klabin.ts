@@ -3,7 +3,7 @@ import { AppSettings, CargaRecord, DepositoKlabinRecord } from '../../types';
 import { sortByDateDescending } from '../dateSorting';
 import { formatBRL, formatDate } from '../formatters';
 import { calcKlabinBalance, isDeductedFromBalance } from '../klabinBalance';
-import { PDF_BRAND, PDF_LAYOUT, drawFittedText, getBrandTableStyles, getPdfFontFamily } from '../pdfVisualStyle';
+import { PDF_BRAND, PDF_LAYOUT, getBrandTableStyles, getPdfFontFamily } from '../pdfVisualStyle';
 
 import { createBasePdfDocument, extractCompanyInfo, finalizePdfAndDownload, renderStandardHeader } from './base';
 // ============================================================================
@@ -14,6 +14,10 @@ export interface GenerateKlabinStatementPdfParams {
   cargas: CargaRecord[];
   appSettings?: AppSettings;
   customLogo?: string;
+  /** Human-readable competency (e.g. "Agosto de 2026") — appends to the title for a per-month Histórico PDF. */
+  periodLabel?: string;
+  /** Competency key (YYYY-MM) — used to make the filename specific to that month. */
+  periodKey?: string;
 }
 
 export function generateKlabinStatementPdf({
@@ -21,6 +25,8 @@ export function generateKlabinStatementPdf({
   cargas,
   appSettings,
   customLogo,
+  periodLabel,
+  periodKey,
 }: GenerateKlabinStatementPdfParams): boolean {
   const companyInfo = extractCompanyInfo(appSettings, customLogo);
   const doc = createBasePdfDocument();
@@ -28,109 +34,60 @@ export function generateKlabinStatementPdf({
 
   const headerEndY = renderStandardHeader(
     doc,
-    'EXTRATO DO SALDO KLABIN',
+    periodLabel ? `EXTRATO DO SALDO KLABIN — ${periodLabel.toUpperCase()}` : 'EXTRATO DO SALDO KLABIN',
     companyInfo
   );
 
-  // 1. Calculate Totals (shared with the application via calcKlabinBalance)
+  // 1. Calculate Totals (shared with the application via calcKlabinBalance).
+  // Depósitos still feed the balance here — they just never get their own visual
+  // row: this PDF is scoped to cargas only, per product decision.
   const eligibleCargas = (cargas || []).filter(isDeductedFromBalance);
 
-  const { totalDepositos, totalAbatido, saldo: saldoLivre } = calcKlabinBalance({
+  const { saldo: saldoLivre } = calcKlabinBalance({
     cargas: cargas || [],
     depositos: depositos || [],
   });
 
-  // 2. Summary Box
+  // 2. Summary Box — single "Saldo Livre Klabin" panel (no deposit breakdown).
   const family = getPdfFontFamily(doc);
   const summaryBoxY = headerEndY;
   const summaryLeft = PDF_LAYOUT.margin;
   const summaryBoxWidth = pageWidth - PDF_LAYOUT.margin * 2;
   const summaryBoxHeight = 20;
+  const summaryBoxCenterX = summaryLeft + summaryBoxWidth / 2;
+  const saldoValueColor = saldoLivre >= 0 ? PDF_BRAND.orangeDark : PDF_BRAND.danger;
 
   doc.setFillColor(PDF_BRAND.light);
   doc.setDrawColor(PDF_BRAND.line);
   doc.roundedRect(summaryLeft, summaryBoxY, summaryBoxWidth, summaryBoxHeight, 1.5, 1.5, 'FD');
 
-  const colWidth = summaryBoxWidth / 3;
-  const colPadding = 6;
-  const colTextWidth = colWidth - colPadding * 2;
+  doc.setFont(family, 'bold');
+  doc.setFontSize(9);
+  doc.setTextColor(PDF_BRAND.brown);
+  doc.text('SALDO LIVRE KLABIN', summaryBoxCenterX, summaryBoxY + 8, { align: 'center' });
 
-  const summaryColumns = [
-    {
-      label: 'TOTAL DEPOSITADO',
-      value: formatBRL(totalDepositos),
-      labelColor: PDF_BRAND.muted,
-      valueColor: PDF_BRAND.graphite,
-      emphasis: false,
-    },
-    {
-      label: 'TOTAL ABATIDO',
-      value: formatBRL(totalAbatido),
-      labelColor: PDF_BRAND.muted,
-      valueColor: PDF_BRAND.graphite,
-      emphasis: false,
-    },
-    {
-      label: 'SALDO LIVRE KLABIN',
-      value: formatBRL(saldoLivre),
-      labelColor: PDF_BRAND.brown,
-      valueColor: saldoLivre >= 0 ? PDF_BRAND.orangeDark : PDF_BRAND.danger,
-      emphasis: true,
-    },
-  ];
+  doc.setFont(family, 'bold');
+  doc.setFontSize(15);
+  doc.setTextColor(saldoValueColor);
+  doc.text(formatBRL(saldoLivre), summaryBoxCenterX, summaryBoxY + 16, { align: 'center' });
 
-  summaryColumns.forEach((column, index) => {
-    const x = summaryLeft + colWidth * index + colPadding;
-
-    doc.setFont(family, column.emphasis ? 'bold' : 'normal');
-    doc.setTextColor(column.labelColor);
-    drawFittedText(doc, column.label, x, summaryBoxY + 6.5, {
-      maxWidth: colTextWidth,
-      baseSize: 8,
-      minSize: 6.5,
-      maxLines: 1,
-    });
-
-    doc.setFont(family, 'bold');
-    doc.setTextColor(column.valueColor);
-    drawFittedText(doc, column.value, x, summaryBoxY + 14.5, {
-      maxWidth: colTextWidth,
-      baseSize: 11,
-      minSize: 8.5,
-      maxLines: 1,
-    });
-  });
-
-  // 3. Build Movements (Chronological: oldest -> newest)
+  // 3. Build Movements (Chronological: oldest -> newest) — cargas only. Depósitos
+  // are intentionally never pushed here: they must not appear anywhere in this PDF.
   interface MovementItem {
     date: string;
-    movimento: 'Depósito' | 'Carga';
+    movimento: 'Carga';
     descricao: string;
-    entrada: number | null;
+    entrada: null;
     saida: number | null;
   }
 
-  const movements: MovementItem[] = [];
-
-  (depositos || []).forEach((d) => {
-    movements.push({
-      date: d.date || '',
-      movimento: 'Depósito',
-      descricao: d.notes?.trim() || 'Depósito Klabin',
-      entrada: Number(d.value) || 0,
-      saida: null,
-    });
-  });
-
-  eligibleCargas.forEach((c) => {
-    movements.push({
-      date: c.date || '',
-      movimento: 'Carga',
-      descricao: c.product?.trim() || 'Eucalipto',
-      entrada: null,
-      saida: Number(c.totalValue) || 0,
-    });
-  });
+  const movements: MovementItem[] = eligibleCargas.map((c) => ({
+    date: c.date || '',
+    movimento: 'Carga',
+    descricao: c.product?.trim() || 'Eucalipto',
+    entrada: null,
+    saida: Number(c.totalValue) || 0,
+  }));
 
   // Newest first, consistent with every dated listing in the app. A raw string
   // compare only happened to work for ISO dates and silently misordered any
@@ -184,7 +141,7 @@ export function generateKlabinStatementPdf({
   });
 
   const todayIso = new Date().toISOString().slice(0, 10);
-  const filename = `Extrato_Klabin_${todayIso}.pdf`;
+  const filename = periodKey ? `Extrato_Klabin_${periodKey}.pdf` : `Extrato_Klabin_${todayIso}.pdf`;
 
   finalizePdfAndDownload(doc, filename, companyInfo.name);
   return true;

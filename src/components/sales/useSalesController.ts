@@ -318,6 +318,10 @@ export function useSalesController({
     return vendas.filter((v) => v.status === 'PAID');
   }, [vendas]);
 
+  const openPaidVendasCount = useMemo(() => {
+    return paidVendasAll.filter((v) => !isMonthLocked(v.date, lockedMonths)).length;
+  }, [paidVendasAll, lockedMonths]);
+
   // Group sales by Client for the active subtab
   const groupedClientVendas = useMemo(() => {
     return groupClientSales(vendaStatusFilter === 'PENDING' ? pendingVendasAll : paidVendasAll, vendaSearchTerm, clientes);
@@ -338,6 +342,7 @@ export function useSalesController({
     vendaStatusFilter,
     pendingVendasAll,
     paidVendasAll,
+    openPaidVendasCount,
     vendaSearchTerm,
     setVendaSearchTerm,
     openVendaModal,

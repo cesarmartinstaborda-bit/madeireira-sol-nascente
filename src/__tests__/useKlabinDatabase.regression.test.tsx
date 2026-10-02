@@ -1,8 +1,8 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { regressionDatabase } from './fixtures/regressionDatabase';
-const cloud = vi.hoisted(() => ({ listener: null as any, unsubscribe: vi.fn(), seed: vi.fn().mockResolvedValue(false) }));
-vi.mock('../utils/firebaseSync', () => ({ subscribeToFirestore: (cb: any) => { cloud.listener = cb; return cloud.unsubscribe; }, checkAndSeedFirestoreIfEmpty: cloud.seed, isFirebaseConfigured: () => true }));
+const cloud = vi.hoisted(() => ({ listener: null as any, unsubscribe: vi.fn(), seed: vi.fn().mockResolvedValue(false), flush: vi.fn().mockResolvedValue(undefined) }));
+vi.mock('../utils/firebaseSync', () => ({ subscribeToFirestore: (cb: any) => { cloud.listener = cb; return cloud.unsubscribe; }, checkAndSeedFirestoreIfEmpty: cloud.seed, flushPendingFirestoreUpserts: cloud.flush, isFirebaseConfigured: () => true }));
 // A sincronização agora espera o Firebase Auth: `auth.current` é o usuário no
 // mount e `auth.cb` deixa o teste disparar login/logout depois.
 const auth = vi.hoisted(() => ({ cb: null as null | ((u: any) => void), current: null as any }));
@@ -28,7 +28,23 @@ it('persiste mutações locais e adia backup; snapshots e setter bruto não agen
   expect(getAutoBackups()[0].data.Depositos_Klabin[0].value).toBe(2000);
   expect(getAutoBackups()[0].data.Depositos_Klabin[0].value).toBe(2000);
 });
-it('mescla Settings conforme presença dos campos, mantém demais coleções e encerra uma assinatura', () => {
+it('executa a transformação imediatamente sobre a referência mais recente e devolve o estado aplicado', () => {
+  const { result } = renderHook(useKlabinDatabase);
+  let updaterExecutions = 0;
+  let next: any;
+
+  act(() => {
+    next = result.current.mutateDatabase((prev) => {
+      updaterExecutions++;
+      return { ...prev, Depositos_Klabin: [{ id: 'sync', date: '2026-09-02', value: 4100 }] };
+    });
+  });
+
+  expect(updaterExecutions).toBe(1);
+  expect(next.Depositos_Klabin[0].value).toBe(4100);
+  expect(result.current.database.Depositos_Klabin[0].value).toBe(4100);
+});
+it('mescla Settings conforme presença dos campos, mantém demais coleções e encerra uma assinatura', async () => {
   const view = renderHook(useKlabinDatabase);
   const before = view.result.current.database;
   act(() => cloud.listener('Settings', { customLogo: 'data:image/png;base64,AAAA' }));
@@ -37,6 +53,8 @@ it('mescla Settings conforme presença dos campos, mantém demais coleções e e
   act(() => cloud.listener('Settings', { customLogo: null }));
   expect(view.result.current.database.customLogo).toBeUndefined();
   expect(cloud.seed).toHaveBeenCalledTimes(1);
+  await act(async () => { await Promise.resolve(); });
+  expect(cloud.flush).toHaveBeenCalledTimes(1);
   view.unmount(); expect(cloud.unsubscribe).toHaveBeenCalledTimes(1);
 });
 it('só assina o Firestore depois que o Firebase Auth confirma um usuário e cancela ao sair', () => {

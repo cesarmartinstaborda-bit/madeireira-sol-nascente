@@ -61,13 +61,6 @@ export const getGoogleAuthProvider = (): GoogleAuthProvider => {
   return provider;
 };
 
-// Observe Firebase independently of the short-lived Drive access token.
-export const onFirebaseUser = (callback: (user: User | null) => void): (() => void) => {
-  const auth = getFirebaseAuth();
-  if (!auth) { callback(null); return () => {}; }
-  return onAuthStateChanged(auth, callback);
-};
-
 // Flag to indicate if we are in the middle of a sign-in flow
 let isSigningIn = false;
 // Cache the access token in memory ONLY (never in localStorage/sessionStorage)
@@ -154,6 +147,27 @@ export const initAuth = (
     if (onAuthFailure) onAuthFailure();
     return () => {};
   }
+};
+
+/**
+ * Observa apenas a presença de um usuário no Firebase Auth, sem a lógica de
+ * token do Drive que o `initAuth` carrega. Serve para quem só precisa saber
+ * "já tem sessão?" — hoje o `useKlabinDatabase`, que só pode falar com o
+ * Firestore depois que as regras de segurança tiverem um `request.auth`.
+ *
+ * Dispara a reconexão silenciosa e chama `cb` a cada mudança de sessão
+ * (login, logout, restauração). Quando o Firebase Auth não está disponível
+ * (app sem Firebase configurado), chama `cb(null)` uma vez e devolve um
+ * no-op: o app segue funcionando só com o armazenamento local.
+ */
+export const onFirebaseUser = (cb: (user: User | null) => void): (() => void) => {
+  const auth = getFirebaseAuth();
+  if (!auth) {
+    cb(null);
+    return () => {};
+  }
+  void restoreGoogleSession();
+  return onAuthStateChanged(auth, (user: User | null) => cb(user));
 };
 
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {

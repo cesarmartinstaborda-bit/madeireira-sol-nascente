@@ -75,10 +75,12 @@ describe('ordenação por data nos PDFs', () => {
     expect(datasDaTabela(0)).toEqual(['2026-08-27', '2026-08-02', '2026-03-10', '2026-01-25']);
   });
 
-  it('ordena o extrato Klabin do movimento mais recente para o mais antigo', () => {
+  it('ordena as cargas do extrato Klabin da mais recente para a mais antiga e nunca lista depósitos', () => {
+    // Depósitos entram bem mais "recentes" que as cargas aqui de propósito: se algum
+    // deles vazasse para a tabela, apareceria antes das cargas e este teste pegaria.
     const depositos: DepositoKlabinRecord[] = [
       { id: 'd1', date: '2026-02-01', value: 10000 },
-      { id: 'd2', date: '2026-08-20', value: 5000 },
+      { id: 'd2', date: '2026-09-01', value: 5000 },
     ];
     const cargas = [
       { id: 'c1', date: '2026-05-15', quantityTons: 10, totalValue: 2000, deductFromBalance: true },
@@ -87,22 +89,10 @@ describe('ordenação por data nos PDFs', () => {
 
     generateKlabinStatementPdf({ depositos, cargas, appSettings });
 
-    expect(datasDaTabela(0)).toEqual(['2026-08-25', '2026-08-20', '2026-05-15', '2026-02-01']);
-  });
-
-  it('mistura depósitos e cargas por data, e não por origem do registro', () => {
-    // The statement merges two independent sources; a stable sort must interleave
-    // them rather than emit every deposit before every carga.
-    generateKlabinStatementPdf({
-      depositos: [{ id: 'd1', date: '2026-06-10', value: 1000 }],
-      cargas: [
-        { id: 'c1', date: '2026-07-01', quantityTons: 5, totalValue: 900, deductFromBalance: true },
-        { id: 'c2', date: '2026-05-01', quantityTons: 5, totalValue: 900, deductFromBalance: true },
-      ] as CargaRecord[],
-      appSettings,
-    });
-
-    expect(autoTableCalls[0].body.map((row) => row[1])).toEqual(['Carga', 'Depósito', 'Carga']);
+    const body = autoTableCalls[0].body;
+    expect(datasDaTabela(0)).toEqual(['2026-08-25', '2026-05-15']);
+    expect(body.every((row) => row[1] === 'Carga')).toBe(true);
+    expect(body.map((row) => row[3])).toEqual(['-', '-']); // coluna "Entrada" nunca é preenchida: depósitos ficam de fora da tabela
   });
 
   it('ordena os fretes do motorista mesmo vindo de cargas e vendas separadas', () => {
@@ -161,12 +151,12 @@ describe('ordenação por data nos PDFs', () => {
 
   it('ordena corretamente datas legadas em DD/MM/AAAA misturadas com ISO', () => {
     generateKlabinStatementPdf({
-      depositos: [
-        { id: 'd1', date: '05/09/2026', value: 1 },
-        { id: 'd2', date: '2026-02-01', value: 1 },
-        { id: 'd3', date: '20/06/2026', value: 1 },
-      ] as DepositoKlabinRecord[],
-      cargas: [],
+      depositos: [],
+      cargas: [
+        { id: 'c1', date: '05/09/2026', quantityTons: 1, totalValue: 1, deductFromBalance: true },
+        { id: 'c2', date: '2026-02-01', quantityTons: 1, totalValue: 1, deductFromBalance: true },
+        { id: 'c3', date: '20/06/2026', quantityTons: 1, totalValue: 1, deductFromBalance: true },
+      ] as CargaRecord[],
       appSettings,
     });
 

@@ -27,6 +27,7 @@ const renderTela = (
   props: {
     cargas: unknown[];
     vendas?: unknown[];
+    lockedMonths?: string[];
     onToggleSingleFreight?: (type: 'CARGA' | 'VENDA', id: string) => void;
   }
 ) =>
@@ -37,6 +38,7 @@ const renderTela = (
       motoristas={motoristas as any}
       freightRatePerTon={15}
       searchTerm=""
+      lockedMonths={props.lockedMonths}
       onPayFreight={noop}
       onRevertFreight={noop}
       onToggleSingleFreight={(props.onToggleSingleFreight ?? noop) as any}
@@ -113,5 +115,39 @@ describe('Gestão de Motoristas — abas de fretes pendentes x quitados', () => 
     expect(metricValues()).toEqual(pendingTabMetrics);
     // total geral = 300, pendente = 150, quitado = 150 → nenhum é zero
     expect(pendingTabMetrics.every((v) => v.length > 0)).toBe(true);
+  });
+
+  it('conta no badge somente quitados de competências abertas e mantém o histórico fechado', () => {
+    const props = {
+      cargas: [
+        carga('closed', '2026-08-25', { freightStatus: 'PAID', freightPaidAt: '2026-08-26' }),
+        carga('open', '2026-09-02', { freightStatus: 'PAID', freightPaidAt: '2026-09-03' }),
+      ],
+      lockedMonths: ['2026-08'],
+    };
+    const view = renderTela(props);
+
+    expect(screen.getByRole('button', { name: 'Fretes Quitados (1)' })).toBeTruthy();
+    goToTab('Fretes Quitados');
+    expect(screen.getByText('25/08/2026')).toBeTruthy();
+    expect(screen.getByText('02/09/2026')).toBeTruthy();
+
+    view.rerender(
+      <TableMotoristas
+        cargas={props.cargas as any}
+        vendas={[]}
+        motoristas={motoristas as any}
+        freightRatePerTon={15}
+        searchTerm=""
+        lockedMonths={[]}
+        onPayFreight={noop}
+        onRevertFreight={noop}
+        onToggleSingleFreight={noop}
+        onAddMotorista={noop}
+        onUpdateMotorista={noop}
+        onDeleteMotorista={noop}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Fretes Quitados (2)' })).toBeTruthy();
   });
 });

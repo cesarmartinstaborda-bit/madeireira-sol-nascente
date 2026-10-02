@@ -18,7 +18,10 @@ const baseDatabase = () => ({
 
 function setup(isLocked: (date?: string) => boolean = () => false) {
   let database = baseDatabase();
-  const mutateDatabase = vi.fn((updater: (prev: any) => any) => { database = updater(database); });
+  const mutateDatabase = vi.fn((updater: (prev: any) => any) => {
+    database = updater(database);
+    return database;
+  });
   const showToast = vi.fn();
   const { result } = renderHook(() => useFreightHandlers({ database, mutateDatabase, showToast, isDateLocked: isLocked }));
   return { result, mutateDatabase, showToast, getDatabase: () => database };
@@ -63,6 +66,48 @@ describe('useFreightHandlers', () => {
     expect(h.getDatabase().Cargas[0]).toMatchObject({ freightStatus: 'PENDING', transactionKey: undefined, freightPaidAt: undefined });
   });
 
+  it('prepara e envia o status ao Firestore mesmo quando a mutação React é aplicada depois', () => {
+    const database = baseDatabase();
+    let pendingUpdater: ((prev: any) => any) | null = null;
+    const mutateDatabase = vi.fn((updater: (prev: any) => any) => {
+      pendingUpdater = updater;
+      return database;
+    });
+    const showToast = vi.fn();
+    const { result } = renderHook(() =>
+      useFreightHandlers({ database, mutateDatabase, showToast, isDateLocked: () => false })
+    );
+
+    act(() => result.current.handleToggleSingleFreight('CARGA', 'c1'));
+
+    expect(firebase.upsert).toHaveBeenCalledWith('cargas', expect.objectContaining({
+      id: 'c1',
+      freightStatus: 'PAID',
+      freightPaidAt: expect.any(String),
+    }));
+    expect(pendingUpdater).not.toBeNull();
+    expect((pendingUpdater as any)(database).Cargas[0].freightStatus).toBe('PAID');
+  });
+
+  it('prepara todos os fretes do lote antes de uma mutação React postergada', () => {
+    const database = baseDatabase();
+    let pendingUpdater: ((prev: any) => any) | null = null;
+    const mutateDatabase = vi.fn((updater: (prev: any) => any) => {
+      pendingUpdater = updater;
+      return database;
+    });
+    const { result } = renderHook(() =>
+      useFreightHandlers({ database, mutateDatabase, showToast: vi.fn(), isDateLocked: () => false })
+    );
+
+    act(() => result.current.handlePayFreightForDriver('m1'));
+
+    expect(firebase.upsert).toHaveBeenCalledTimes(3);
+    expect(firebase.upsert).toHaveBeenCalledWith('cargas', expect.objectContaining({ id: 'c1', freightStatus: 'PAID' }));
+    expect(firebase.upsert).toHaveBeenCalledWith('vendas', expect.objectContaining({ id: 'v1', freightStatus: 'PAID' }));
+    expect((pendingUpdater as any)(database).Cargas.map((record: any) => record.freightStatus)).toEqual(['PAID', 'PAID', 'PENDING']);
+  });
+
   it('não altera nem sincroniza um frete individual de mês fechado', () => {
     const h = setup(() => true);
     act(() => h.result.current.handleToggleSingleFreight('VENDA', 'v1'));
@@ -85,7 +130,10 @@ describe('useFreightHandlers', () => {
     database.Cargas = database.Cargas.map((c: any) => ({ ...c, freightStatus: 'PAID' }));
     database.Vendas = database.Vendas.map((v: any) => ({ ...v, freightStatus: 'PAID' }));
     const before = JSON.stringify(database);
-    const mutateDatabase = vi.fn((u: (p: any) => any) => { database = u(database); });
+    const mutateDatabase = vi.fn((u: (p: any) => any) => {
+      database = u(database);
+      return database;
+    });
     const showToast = vi.fn();
     const { result } = renderHook(() =>
       useFreightHandlers({ database, mutateDatabase, showToast, isDateLocked: () => false })
@@ -103,7 +151,10 @@ describe('useFreightHandlers', () => {
       { id: 'cx', date: '2026-08-15', driverPlate: 'joão / abc-1234', freightPayable: 'YES', freightCost: 120, freightStatus: 'PAID', freightPaidAt: '2026-08-16' },
     ];
     database.Vendas = [];
-    const mutateDatabase = vi.fn((updater: (p: any) => any) => { database = updater(database); });
+    const mutateDatabase = vi.fn((updater: (p: any) => any) => {
+      database = updater(database);
+      return database;
+    });
     const showToast = vi.fn();
     const { result } = renderHook(() =>
       useFreightHandlers({ database, mutateDatabase, showToast, isDateLocked: () => false })

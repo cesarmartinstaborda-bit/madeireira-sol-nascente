@@ -7,6 +7,7 @@ const cloud = vi.hoisted(() => ({ listener: null as null | ((key: string, data: 
 vi.mock('../utils/firebaseSync', () => ({
   subscribeToFirestore: (listener: typeof cloud.listener) => { cloud.listener = listener; return cloud.unsubscribe; },
   checkAndSeedFirestoreIfEmpty: vi.fn().mockResolvedValue(false),
+  flushPendingFirestoreUpserts: vi.fn().mockResolvedValue(undefined),
   upsertFirestoreRecord: cloud.upsert, deleteFirestoreRecord: vi.fn(),
   syncFirestoreSettings: cloud.settings, restoreFirestoreAuthoritatively: cloud.restore,
   isFirebaseConfigured: () => true,

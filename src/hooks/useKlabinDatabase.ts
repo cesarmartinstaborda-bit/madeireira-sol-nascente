@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import { KlabinDatabase } from '../types';
 import { loadDatabase, saveDatabase, sanitizeDatabase, createAutoBackup } from '../utils/storage';
 import { onFirebaseUser } from '../utils/googleAuth';
-import { subscribeToFirestore, checkAndSeedFirestoreIfEmpty } from '../utils/firebaseSync';
+import {
+  subscribeToFirestore,
+  checkAndSeedFirestoreIfEmpty,
+  flushPendingFirestoreUpserts,
+  isFirebaseConfigured,
+} from '../utils/firebaseSync';
 
 /**
  * Owns the application database state: local persistence and real-time Firestore sync.
@@ -27,15 +32,21 @@ export function useKlabinDatabase() {
   // Auto-backup is fired here (throttled inside createAutoBackup) and off the
   // click, so a status toggle no longer serializes the whole DB synchronously.
   const mutateDatabase = (updater: (prev: KlabinDatabase) => KlabinDatabase) => {
-    setDatabase((prev) => {
-      const next = sanitizeDatabase(updater(prev));
-      setTimeout(() => createAutoBackup(next), 0);
-      return next;
-    });
+    // Compute from the latest committed/mutated value ourselves instead of
+    // putting the updater inside React's queue. Domain handlers may need the
+    // record produced by the mutation immediately to mirror it to Firestore;
+    // React is free to defer a setState updater, which previously made those
+    // handlers occasionally skip their cloud write.
+    const next = sanitizeDatabase(updater(databaseRef.current));
+    databaseRef.current = next;
+    setDatabase(next);
+    setTimeout(() => createAutoBackup(next), 0);
+    return next;
   };
 
-  // Real-time Firestore sync with authoritative collections
+  // Auth gates synchronization; without configuration/session the app stays local.
   useEffect(() => {
+    if (!isFirebaseConfigured()) return;
     let unsubscribe = () => {};
     let activeUser: string | null = null;
     const stopAuth = onFirebaseUser((user) => {
@@ -45,9 +56,18 @@ export function useKlabinDatabase() {
       unsubscribe = () => {};
       activeUser = uid;
       if (!user) return;
-      checkAndSeedFirestoreIfEmpty(databaseRef.current).catch((err) => {
-        console.warn('[Firestore] Inicialização:', err);
-      });
+      // Seed first: if the cloud is genuinely empty, the complete local database
+      // must be uploaded before retrying individual queued records. Running both
+      // checks concurrently could make one queued document render the cloud
+      // non-empty and prevent the remaining local records from being seeded.
+      checkAndSeedFirestoreIfEmpty(databaseRef.current)
+        .catch((err) => {
+          console.warn('[Firestore] Inicialização:', err);
+        })
+        .then(() => flushPendingFirestoreUpserts())
+        .catch((err) => {
+          console.warn('[Firestore] Reenvio de alterações locais pendentes:', err);
+        });
 
       unsubscribe = subscribeToFirestore((collectionKey, data) => {
         if (activeUser !== uid) return;

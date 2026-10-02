@@ -96,6 +96,11 @@ export const Header: React.FC<HeaderProps> = ({
           title: 'Gestão de Motoristas',
           subtitle: 'Controle de fretes a pagar, quitações e cadastro de veículos',
         };
+      case 'Historico':
+        return {
+          title: 'Histórico',
+          subtitle: 'Competências encerradas do módulo Klabin — consulta e emissão de PDF por mês',
+        };
       case 'Configuracoes':
         return {
           title: 'Configurações e Ajustes',
@@ -110,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const { title, subtitle } = getTitleAndSubtitle();
-  const canExport = activeTable !== 'Dashboard' && activeTable !== 'Configuracoes';
+  const canExport = activeTable !== 'Dashboard' && activeTable !== 'Configuracoes' && activeTable !== 'Historico';
 
   return (
     <header className="mac-toolbar px-6 py-3.5 sticky top-0 z-10 select-none flex flex-col sm:flex-row sm:items-center justify-between gap-3">

@@ -1,8 +1,8 @@
 import React from 'react';
 import { CargaRecord, ProdutoRecord, MotoristaRecord } from '../types';
 import { formatCurrency, formatNumber, formatDateBR } from '../utils/formatters';
-import { isDeductedFromBalance, sumDeductedFromBalance } from '../utils/klabinBalance';
-import { Truck, Edit2, Trash2, CheckCircle, Plus, Lock } from 'lucide-react';
+import { isDeductedFromBalance } from '../utils/klabinBalance';
+import { Truck, Edit2, Trash2, Plus, Lock } from 'lucide-react';
 import { sortByDateDescending } from '../utils/dateSorting';
 
 interface TableCargasProps {
@@ -16,6 +16,8 @@ interface TableCargasProps {
   lockedMonths?: string[];
   motoristas?: MotoristaRecord[];
   freightRatePerTon?: number;
+  /** Hides the "Adicionar Carga" action — used by the Histórico view over closed competencies. */
+  readOnly?: boolean;
 }
 
 export const TableCargas: React.FC<TableCargasProps> = ({
@@ -27,6 +29,7 @@ export const TableCargas: React.FC<TableCargasProps> = ({
   onUpdateRecord,
   lockedMonths = [],
   freightRatePerTon = 15,
+  readOnly = false,
 }) => {
   const filteredRecords = sortByDateDescending(records.filter((r) => {
     if (!searchTerm) return true;
@@ -41,10 +44,6 @@ export const TableCargas: React.FC<TableCargasProps> = ({
     );
   }), (record) => record.date);
 
-  const totalTons = filteredRecords.reduce((acc, r) => acc + (Number(r.quantityTons) || 0), 0);
-  const totalValueSum = filteredRecords.reduce((acc, r) => acc + (Number(r.totalValue) || 0), 0);
-  const totalAbatido = sumDeductedFromBalance(filteredRecords);
-
   const isLocked = (dateStr?: string) => {
     if (!dateStr || dateStr.length < 7 || !Array.isArray(lockedMonths)) return false;
     return lockedMonths.includes(dateStr.slice(0, 7));
@@ -52,45 +51,6 @@ export const TableCargas: React.FC<TableCargasProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Summary Cards Top */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="glass-card p-4 flex items-center space-x-3">
-          <div className="p-2.5 bg-[#232832] text-amber-400 rounded-xl border border-[var(--graphite-border-subtle)]">
-            <Truck className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider block">
-              Volume Total (Toneladas)
-            </span>
-            <span className="text-lg font-bold text-white font-mono">{formatNumber(totalTons, 2)} Ton</span>
-          </div>
-        </div>
-
-        <div className="glass-card p-4 flex items-center space-x-3">
-          <div className="p-2.5 bg-[#232832] text-blue-400 rounded-xl border border-[var(--graphite-border-subtle)]">
-            <Truck className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider block">
-              Valor Total de Compras
-            </span>
-            <span className="text-lg font-bold text-white font-mono">{formatCurrency(totalValueSum)}</span>
-          </div>
-        </div>
-
-        <div className="glass-card p-4 flex items-center space-x-3">
-          <div className="p-2.5 bg-[#232832] text-emerald-400 rounded-xl border border-[var(--graphite-border-subtle)]">
-            <CheckCircle className="w-5 h-5" />
-          </div>
-          <div>
-            <span className="text-[11px] font-bold uppercase text-slate-400 tracking-wider block">
-              Abatido do Saldo Klabin
-            </span>
-            <span className="text-lg font-bold text-emerald-400 font-mono">{formatCurrency(totalAbatido)}</span>
-          </div>
-        </div>
-      </div>
-
       {/* Main Table Card */}
       <div className="glass-card-static overflow-hidden">
         <div className="p-4 border-b border-[var(--graphite-border-subtle)] flex items-center justify-between">
@@ -98,13 +58,15 @@ export const TableCargas: React.FC<TableCargasProps> = ({
             <Truck className="w-4 h-4 text-blue-400" />
             <span>Registro de Cargas ({filteredRecords.length})</span>
           </h2>
-          <button
-            onClick={onAdd}
-            className="mac-button-primary"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>Adicionar Carga</span>
-          </button>
+          {!readOnly && (
+            <button
+              onClick={onAdd}
+              className="mac-button-primary"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Adicionar Carga</span>
+            </button>
+          )}
         </div>
 
         <div className="overflow-x-auto">

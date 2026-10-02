@@ -6,6 +6,7 @@ import {
   Users,
   Truck,
   Settings,
+  Archive,
 } from 'lucide-react';
 import defaultLogo from '@/assets/icon.png';
 
@@ -21,6 +22,7 @@ interface SidebarProps {
     Clientes: number;
     Vendas: number;
     Produtos: number;
+    Historico: number;
   };
   customLogo?: string;
   onUpdateCustomLogo: (logoBase64: string | undefined) => void;
@@ -71,6 +73,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sublabel: 'Fretes & Cadastro',
       icon: Truck,
       count: counts.Motoristas,
+    },
+    {
+      id: 'Historico',
+      label: 'Histórico',
+      sublabel: 'Competências Encerradas',
+      icon: Archive,
+      count: counts.Historico,
     },
     {
       id: 'Configuracoes',

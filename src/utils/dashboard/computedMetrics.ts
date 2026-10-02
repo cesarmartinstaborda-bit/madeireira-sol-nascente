@@ -1,6 +1,6 @@
 import { CaixaRecord, KlabinDatabase, ResumoRecord } from '../../types';
 import { getFreightRecords, getTotalFreight } from '../freightUtils';
-import { calcKlabinBalance } from '../klabinBalance';
+import { calcOpenKlabinBalance } from '../klabinBalance';
 
 export function computeDashboardMetrics(database: KlabinDatabase) {
   const totalVolumeTons = database.Cargas.reduce(
@@ -13,10 +13,15 @@ export function computeDashboardMetrics(database: KlabinDatabase) {
     0
   );
 
-  const { totalDepositos, totalAbatido, saldo: saldoLiquidoKlabin } = calcKlabinBalance({
-    cargas: database.Cargas,
-    depositos: database.Depositos_Klabin,
-  });
+  // "Saldo Livre Klabin" (and its breakdown) is defined over open competencies
+  // only — see calcOpenKlabinBalance. Volume/compras totals above stay whole-
+  // database on purpose: they are different indicators, out of this bug's scope.
+  const lockedMonths = database.appSettings?.cycles?.lockedMonths || [];
+  const { totalDepositos, totalAbatido, saldo: saldoLiquidoKlabin } = calcOpenKlabinBalance(
+    database.Cargas,
+    database.Depositos_Klabin,
+    lockedMonths
+  );
   const freightRatePerTon = database.appSettings?.freightRatePerTon || 15;
 
   const allFreightRecords = getFreightRecords(database);

@@ -1,9 +1,10 @@
+import { useRef } from 'react';
 import { KlabinDatabase, CargaRecord, VendaRecord } from '../types';
 import { upsertFirestoreRecord } from '../utils/firebaseSync';
 
 interface UseFreightHandlersParams {
   database: KlabinDatabase;
-  mutateDatabase: (updater: (prev: KlabinDatabase) => KlabinDatabase) => void;
+  mutateDatabase: (updater: (prev: KlabinDatabase) => KlabinDatabase) => KlabinDatabase;
   showToast: (msg: string) => void;
   isDateLocked: (dateStr?: string) => boolean;
 }
@@ -24,12 +25,16 @@ export function useFreightHandlers({
   showToast,
   isDateLocked,
 }: UseFreightHandlersParams) {
+  const databaseRef = useRef(database);
+  databaseRef.current = database;
+
   // Resolves which Cargas/Vendas belong to a driver key. Matching by plate/name
   // is case-insensitive so it stays consistent with freightUtils.findMatchedDriver
   // (which normalizes to upper-case) — otherwise a header button could target a
   // group whose records it never matches, and the click would do nothing.
   const buildDriverMatcher = (driverKeyOrId: string) => {
-    const matchedMotorista = (database.Motoristas || []).find(
+    const currentDatabase = databaseRef.current;
+    const matchedMotorista = (currentDatabase.Motoristas || []).find(
       (m) => m.id === driverKeyOrId || `${m.name} / ${m.licensePlate}` === driverKeyOrId || m.licensePlate === driverKeyOrId
     );
     const targetDriverId = matchedMotorista?.id || driverKeyOrId;
@@ -55,60 +60,56 @@ export function useFreightHandlers({
     const updatedCargasToSync: CargaRecord[] = [];
     const updatedVendasToSync: VendaRecord[] = [];
     let skippedLockedCount = 0;
-    let paidCount = 0;
 
     const { targetDriverName, isRecordMatch } = buildDriverMatcher(driverKeyOrId);
+    const paidAt = new Date().toISOString();
 
-    mutateDatabase((prev) => {
-      const newCargas = prev.Cargas.map((c) => {
-        if (isRecordMatch(c) && c.freightPayable !== 'NO' && (c.freightPayable as any) !== false && c.freightStatus !== 'PAID') {
-          if (c.date && isDateLocked(c.date)) {
-            skippedLockedCount++;
-            return c;
-          }
-          paidCount++;
-          const updated = {
-            ...c,
-            freightStatus: 'PAID' as const,
-            freightPaidAt: new Date().toISOString(),
-            transactionKey: transactionKey || c.transactionKey,
-          };
-          updatedCargasToSync.push(updated);
-          return updated;
+    for (const carga of databaseRef.current.Cargas) {
+      if (isRecordMatch(carga) && carga.freightPayable !== 'NO' && (carga.freightPayable as any) !== false && carga.freightStatus !== 'PAID') {
+        if (carga.date && isDateLocked(carga.date)) {
+          skippedLockedCount++;
+          continue;
         }
-        return c;
-      });
+        updatedCargasToSync.push({
+          ...carga,
+          freightStatus: 'PAID',
+          freightPaidAt: paidAt,
+          transactionKey: transactionKey || carga.transactionKey,
+        });
+      }
+    }
 
-      const newVendas = (prev.Vendas || []).map((v) => {
-        if (isRecordMatch(v) && v.freightPayable !== 'NO' && (v.freightPayable as any) !== false && v.freightStatus !== 'PAID') {
-          if (v.date && isDateLocked(v.date)) {
-            skippedLockedCount++;
-            return v;
-          }
-          paidCount++;
-          const updated = {
-            ...v,
-            freightStatus: 'PAID' as const,
-            freightPaidAt: new Date().toISOString(),
-            transactionKey: transactionKey || v.transactionKey,
-          };
-          updatedVendasToSync.push(updated);
-          return updated;
+    for (const venda of databaseRef.current.Vendas || []) {
+      if (isRecordMatch(venda) && venda.freightPayable !== 'NO' && (venda.freightPayable as any) !== false && venda.freightStatus !== 'PAID') {
+        if (venda.date && isDateLocked(venda.date)) {
+          skippedLockedCount++;
+          continue;
         }
-        return v;
-      });
+        updatedVendasToSync.push({
+          ...venda,
+          freightStatus: 'PAID',
+          freightPaidAt: paidAt,
+          transactionKey: transactionKey || venda.transactionKey,
+        });
+      }
+    }
 
-      // Nothing changed: return the same reference so React skips the re-render
-      // and the persistence/backup cycle does not run for a no-op click.
-      if (paidCount === 0) return prev;
+    const paidCount = updatedCargasToSync.length + updatedVendasToSync.length;
+    if (paidCount > 0) {
+      const cargasById = new Map(updatedCargasToSync.map((record) => [record.id, record]));
+      const vendasById = new Map(updatedVendasToSync.map((record) => [record.id, record]));
 
-      return {
+      databaseRef.current = mutateDatabase((prev) => ({
         ...prev,
-        Cargas: newCargas,
-        Vendas: newVendas,
-      };
-    });
+        Cargas: prev.Cargas.map((record) => cargasById.get(record.id) || record),
+        Vendas: (prev.Vendas || []).map((record) => vendasById.get(record.id) || record),
+      }));
+    }
 
+    // Firestore payloads are prepared before scheduling React state. Deriving them
+    // inside a setState updater made this branch depend on React executing the
+    // updater eagerly; when it was deferred, no cloud write happened and the next
+    // authoritative snapshot restored the old PENDING value.
     updatedCargasToSync.forEach((c) => upsertFirestoreRecord('cargas', c));
     updatedVendasToSync.forEach((v) => upsertFirestoreRecord('vendas', v));
 
@@ -128,57 +129,48 @@ export function useFreightHandlers({
     const revertedCargasToSync: CargaRecord[] = [];
     const revertedVendasToSync: VendaRecord[] = [];
     let skippedLockedCount = 0;
-    let revertedCount = 0;
 
     const { targetDriverName, isRecordMatch } = buildDriverMatcher(driverKeyOrId);
 
-    mutateDatabase((prev) => {
-      const newCargas = prev.Cargas.map((c) => {
-        if (isRecordMatch(c) && c.freightPayable !== 'NO' && (c.freightPayable as any) !== false && c.freightStatus === 'PAID') {
-          if (c.date && isDateLocked(c.date)) {
-            skippedLockedCount++;
-            return c;
-          }
-          revertedCount++;
-          const updated = {
-            ...c,
-            freightStatus: 'PENDING' as const,
-            freightPaidAt: undefined,
-          };
-          revertedCargasToSync.push(updated);
-          return updated;
+    for (const carga of databaseRef.current.Cargas) {
+      if (isRecordMatch(carga) && carga.freightPayable !== 'NO' && (carga.freightPayable as any) !== false && carga.freightStatus === 'PAID') {
+        if (carga.date && isDateLocked(carga.date)) {
+          skippedLockedCount++;
+          continue;
         }
-        return c;
-      });
+        revertedCargasToSync.push({
+          ...carga,
+          freightStatus: 'PENDING',
+          freightPaidAt: undefined,
+        });
+      }
+    }
 
-      const newVendas = (prev.Vendas || []).map((v) => {
-        if (isRecordMatch(v) && v.freightPayable !== 'NO' && (v.freightPayable as any) !== false && v.freightStatus === 'PAID') {
-          if (v.date && isDateLocked(v.date)) {
-            skippedLockedCount++;
-            return v;
-          }
-          revertedCount++;
-          const updated = {
-            ...v,
-            freightStatus: 'PENDING' as const,
-            freightPaidAt: undefined,
-          };
-          revertedVendasToSync.push(updated);
-          return updated;
+    for (const venda of databaseRef.current.Vendas || []) {
+      if (isRecordMatch(venda) && venda.freightPayable !== 'NO' && (venda.freightPayable as any) !== false && venda.freightStatus === 'PAID') {
+        if (venda.date && isDateLocked(venda.date)) {
+          skippedLockedCount++;
+          continue;
         }
-        return v;
-      });
+        revertedVendasToSync.push({
+          ...venda,
+          freightStatus: 'PENDING',
+          freightPaidAt: undefined,
+        });
+      }
+    }
 
-      // Nothing changed: return the same reference so React skips the re-render
-      // and the persistence/backup cycle does not run for a no-op click.
-      if (revertedCount === 0) return prev;
+    const revertedCount = revertedCargasToSync.length + revertedVendasToSync.length;
+    if (revertedCount > 0) {
+      const cargasById = new Map(revertedCargasToSync.map((record) => [record.id, record]));
+      const vendasById = new Map(revertedVendasToSync.map((record) => [record.id, record]));
 
-      return {
+      databaseRef.current = mutateDatabase((prev) => ({
         ...prev,
-        Cargas: newCargas,
-        Vendas: newVendas,
-      };
-    });
+        Cargas: prev.Cargas.map((record) => cargasById.get(record.id) || record),
+        Vendas: (prev.Vendas || []).map((record) => vendasById.get(record.id) || record),
+      }));
+    }
 
     revertedCargasToSync.forEach((c) => upsertFirestoreRecord('cargas', c));
     revertedVendasToSync.forEach((v) => upsertFirestoreRecord('vendas', v));
@@ -196,60 +188,49 @@ export function useFreightHandlers({
 
   // Toggle single freight status with entity type safety (PENDING <-> PAID)
   const handleToggleSingleFreight = (type: 'CARGA' | 'VENDA', recordId: string, transactionKey?: string) => {
-    let updatedSingleCarga: CargaRecord | null = null;
-    let updatedSingleVenda: VendaRecord | null = null;
-
     if (type === 'CARGA') {
-      const carga = database.Cargas.find((c) => c.id === recordId);
+      const carga = databaseRef.current.Cargas.find((c) => c.id === recordId);
+      if (!carga) return;
       if (carga && carga.date && isDateLocked(carga.date)) {
         showToast('Operação bloqueada: o frete desta carga pertence a um mês trancado no Fechamento de Ciclo.');
         return;
       }
 
-      mutateDatabase((prev) => ({
+      const newStatus = carga.freightStatus === 'PAID' ? 'PENDING' : 'PAID';
+      const updatedSingleCarga: CargaRecord = {
+        ...carga,
+        freightStatus: newStatus,
+        freightPaidAt: newStatus === 'PAID' ? new Date().toISOString() : undefined,
+        transactionKey: newStatus === 'PAID' ? (transactionKey || carga.transactionKey) : undefined,
+      };
+      databaseRef.current = mutateDatabase((prev) => ({
         ...prev,
-        Cargas: prev.Cargas.map((c) => {
-          if (c.id === recordId) {
-            const newStatus = c.freightStatus === 'PAID' ? 'PENDING' : 'PAID';
-            updatedSingleCarga = {
-              ...c,
-              freightStatus: newStatus as 'PENDING' | 'PAID',
-              freightPaidAt: newStatus === 'PAID' ? new Date().toISOString() : undefined,
-              transactionKey: newStatus === 'PAID' ? (transactionKey || c.transactionKey) : undefined,
-            };
-            return updatedSingleCarga;
-          }
-          return c;
-        }),
+        Cargas: prev.Cargas.map((record) => record.id === recordId ? updatedSingleCarga : record),
       }));
 
-      if (updatedSingleCarga) upsertFirestoreRecord('cargas', updatedSingleCarga);
+      upsertFirestoreRecord('cargas', updatedSingleCarga);
       showToast('Status do frete da carga atualizado.');
     } else if (type === 'VENDA') {
-      const venda = (database.Vendas || []).find((v) => v.id === recordId);
+      const venda = (databaseRef.current.Vendas || []).find((v) => v.id === recordId);
+      if (!venda) return;
       if (venda && venda.date && isDateLocked(venda.date)) {
         showToast('Operação bloqueada: o frete desta venda pertence a um mês trancado no Fechamento de Ciclo.');
         return;
       }
 
-      mutateDatabase((prev) => ({
+      const newStatus = venda.freightStatus === 'PAID' ? 'PENDING' : 'PAID';
+      const updatedSingleVenda: VendaRecord = {
+        ...venda,
+        freightStatus: newStatus,
+        freightPaidAt: newStatus === 'PAID' ? new Date().toISOString() : undefined,
+        transactionKey: newStatus === 'PAID' ? (transactionKey || venda.transactionKey) : undefined,
+      };
+      databaseRef.current = mutateDatabase((prev) => ({
         ...prev,
-        Vendas: (prev.Vendas || []).map((v) => {
-          if (v.id === recordId) {
-            const newStatus = v.freightStatus === 'PAID' ? 'PENDING' : 'PAID';
-            updatedSingleVenda = {
-              ...v,
-              freightStatus: newStatus as 'PENDING' | 'PAID',
-              freightPaidAt: newStatus === 'PAID' ? new Date().toISOString() : undefined,
-              transactionKey: newStatus === 'PAID' ? (transactionKey || v.transactionKey) : undefined,
-            };
-            return updatedSingleVenda;
-          }
-          return v;
-        }),
+        Vendas: (prev.Vendas || []).map((record) => record.id === recordId ? updatedSingleVenda : record),
       }));
 
-      if (updatedSingleVenda) upsertFirestoreRecord('vendas', updatedSingleVenda);
+      upsertFirestoreRecord('vendas', updatedSingleVenda);
       showToast('Status do frete da venda atualizado.');
     }
   };

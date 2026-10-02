@@ -6,7 +6,7 @@ vi.mock('firebase/firestore', () => ({ getFirestore: () => ({}), collection: (_d
   onSnapshot: (col: string, next: any, error: any) => { sdk.snapshots.push({ col, next, error }); return sdk.stop; },
   writeBatch: () => ({ set: sdk.sets, delete: sdk.deletes, commit: sdk.commit }),
 }));
-import { subscribeToFirestore, restoreFirestoreAuthoritatively, isFirestoreSyncSuspended, checkAndSeedFirestoreIfEmpty, upsertFirestoreRecord } from '../utils/firebaseSync';
+import { subscribeToFirestore, restoreFirestoreAuthoritatively, isFirestoreSyncSuspended, checkAndSeedFirestoreIfEmpty, flushPendingFirestoreUpserts, getPendingFirestoreUpserts, upsertFirestoreRecord } from '../utils/firebaseSync';
 import { initialKlabinData } from '../data/initialData';
 beforeEach(() => { localStorage.clear(); vi.clearAllMocks(); sdk.snapshots = []; sdk.getDocs.mockResolvedValue({ empty: true, docs: [] }); sdk.commit.mockResolvedValue(undefined); vi.spyOn(console, 'warn').mockImplementation(() => {}); vi.spyOn(console, 'error').mockImplementation(() => {}); });
 afterEach(() => vi.restoreAllMocks());
@@ -42,4 +42,38 @@ it('não publica dados demonstrativos e retira undefined do upsert', async () =>
   expect(sdk.setDoc).not.toHaveBeenCalled();
   await upsertFirestoreRecord('cargas', { id: 'test', date: '2026-09-01', note: undefined });
   expect(sdk.setDoc).toHaveBeenCalledWith('cargas/test', { id: 'test', date: '2026-09-01' }, { merge: true });
+});
+it('preserva um status local pendente de envio contra snapshot antigo e o reenvia depois', async () => {
+  let rejectWrite: ((reason: Error) => void) | undefined;
+  sdk.setDoc.mockImplementationOnce(() => new Promise((_, reject) => { rejectWrite = reject; }));
+  const paid = {
+    id: 'crg-f04ebbce-15b5-49d4-8762-6789de7f16e6',
+    date: '2026-08-25',
+    driverPlate: 'Cleverson Gonçalves Costa / AFD-3J31',
+    quantityTons: 21.72,
+    freightCost: 325.8,
+    freightStatus: 'PAID',
+  };
+  const write = upsertFirestoreRecord('cargas', paid);
+
+  expect(getPendingFirestoreUpserts('cargas')).toEqual([{ collection: 'cargas', record: paid }]);
+
+  const update = vi.fn();
+  subscribeToFirestore(update);
+  const carga = sdk.snapshots.find(s => s.col === 'cargas');
+  carga.next({
+    empty: false,
+    metadata: { fromCache: false },
+    forEach: (fn: any) => fn({ id: paid.id, data: () => ({ ...paid, freightStatus: 'PENDING' }) }),
+  });
+  expect(update).toHaveBeenLastCalledWith('Cargas', [paid]);
+
+  rejectWrite!(new Error('permission-denied'));
+  await write;
+  expect(getPendingFirestoreUpserts('cargas')).toHaveLength(1);
+
+  sdk.setDoc.mockResolvedValueOnce(undefined);
+  await flushPendingFirestoreUpserts();
+  expect(sdk.setDoc).toHaveBeenLastCalledWith(`cargas/${paid.id}`, paid, { merge: true });
+  expect(getPendingFirestoreUpserts()).toEqual([]);
 });

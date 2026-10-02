@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CargaRecord, VendaRecord, MotoristaRecord, AppSettings } from '../types';
-import { formatCurrency, formatNumber, formatDateBR } from '../utils/formatters';
+import { formatCurrency, formatNumber, formatDateBR, isMonthLocked } from '../utils/formatters';
 import { Users, CheckCircle, Clock, DollarSign, Plus, Edit2, Trash2, Phone, CreditCard, AlertCircle, Lock, FileText } from 'lucide-react';
 import { generateId } from '../utils/idGenerator';
 import { getFreightGroupsByDriver, getFreightRecords, DriverFreightGroup } from '../utils/freightUtils';
@@ -126,6 +126,15 @@ export const TableMotoristas: React.FC<TableMotoristasProps> = ({
       'PAID'
     );
   }, [cargas, vendas, motoristas, freightRatePerTon, searchTerm]);
+
+  const openPaidFreightCount = React.useMemo(() => {
+    return getFreightRecords({
+      Cargas: cargas,
+      Vendas: vendas,
+      Motoristas: motoristas,
+      appSettings: { freightRatePerTon },
+    }).filter((record) => record.freightStatus === 'PAID' && !isMonthLocked(record.date, lockedMonths)).length;
+  }, [cargas, vendas, motoristas, freightRatePerTon, lockedMonths]);
 
   // Header indicators: one pass over the unified freight records instead of three
   // full scans on every render (Firestore snapshot echoes and unrelated state
@@ -406,7 +415,7 @@ export const TableMotoristas: React.FC<TableMotoristasProps> = ({
           }`}
         >
           <CheckCircle className="w-4 h-4" />
-          <span>Fretes Quitados</span>
+          <span>Fretes Quitados ({openPaidFreightCount})</span>
         </button>
         <button
           onClick={() => setActiveTab('DRIVERS')}

@@ -47,6 +47,7 @@ export type FirebaseSyncStatus =
   | 'ERROR';
 
 const LAST_SYNC_KEY = 'klabin_last_successful_sync_at';
+const PENDING_UPSERTS_KEY = 'klabin_firestore_pending_upserts_v1';
 
 export function getStoredLastSyncTime(): string | null {
   try {
@@ -163,6 +164,87 @@ export type FirestoreCollectionKey =
   | 'produtos'
   | 'motoristas';
 
+interface PendingFirestoreUpsert {
+  collection: FirestoreCollectionKey;
+  record: Record<string, any>;
+}
+
+function readPendingFirestoreUpserts(): PendingFirestoreUpsert[] {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PENDING_UPSERTS_KEY) || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item): item is PendingFirestoreUpsert =>
+      Boolean(item?.record?.id) &&
+      ['cargas', 'depositos', 'clientes', 'vendas', 'produtos', 'motoristas'].includes(item?.collection)
+    );
+  } catch {
+    return [];
+  }
+}
+
+function writePendingFirestoreUpserts(items: PendingFirestoreUpsert[]): void {
+  try {
+    if (items.length === 0) localStorage.removeItem(PENDING_UPSERTS_KEY);
+    else localStorage.setItem(PENDING_UPSERTS_KEY, JSON.stringify(items));
+  } catch (error) {
+    console.error('[Firestore] Falha ao persistir fila local de sincronização:', error);
+  }
+}
+
+function cleanFirestoreRecord(record: Record<string, any>): Record<string, any> {
+  return Object.fromEntries(Object.entries(record).filter(([, value]) => value !== undefined));
+}
+
+function queueFirestoreUpsert(collectionKey: FirestoreCollectionKey, record: Record<string, any>): Record<string, any> {
+  const cleanRecord = cleanFirestoreRecord(record);
+  const pending = readPendingFirestoreUpserts().filter(
+    (item) => !(item.collection === collectionKey && String(item.record.id) === String(cleanRecord.id))
+  );
+  pending.push({ collection: collectionKey, record: cleanRecord });
+  writePendingFirestoreUpserts(pending);
+  return cleanRecord;
+}
+
+function acknowledgeFirestoreUpsert(
+  collectionKey: FirestoreCollectionKey,
+  record: Record<string, any>
+): void {
+  const serializedRecord = JSON.stringify(record);
+  const pending = readPendingFirestoreUpserts();
+  const remaining = pending.filter((item) => {
+    if (item.collection !== collectionKey || String(item.record.id) !== String(record.id)) return true;
+    // A newer local update for the same document must remain queued.
+    return JSON.stringify(item.record) !== serializedRecord;
+  });
+  if (remaining.length !== pending.length) writePendingFirestoreUpserts(remaining);
+}
+
+function discardPendingFirestoreUpsert(collectionKey: FirestoreCollectionKey, id: string): void {
+  const pending = readPendingFirestoreUpserts();
+  const remaining = pending.filter(
+    (item) => !(item.collection === collectionKey && String(item.record.id) === String(id))
+  );
+  if (remaining.length !== pending.length) writePendingFirestoreUpserts(remaining);
+}
+
+export function getPendingFirestoreUpserts(collectionKey?: FirestoreCollectionKey): PendingFirestoreUpsert[] {
+  const pending = readPendingFirestoreUpserts();
+  return collectionKey ? pending.filter((item) => item.collection === collectionKey) : pending;
+}
+
+function overlayPendingFirestoreUpserts<T extends { id: string }>(
+  collectionKey: FirestoreCollectionKey,
+  remoteRecords: T[]
+): T[] {
+  const recordsById = new Map(remoteRecords.map((record) => [String(record.id), record]));
+  for (const pending of readPendingFirestoreUpserts()) {
+    if (pending.collection === collectionKey) {
+      recordsById.set(String(pending.record.id), pending.record as T);
+    }
+  }
+  return Array.from(recordsById.values());
+}
+
 /**
  * Normalizes entity/table names to Firestore collection names
  */
@@ -185,22 +267,33 @@ export async function upsertFirestoreRecord(
   record: any
 ): Promise<void> {
   const firestore = getFirestoreDb();
-  if (!firestore || !record || !record.id) return;
+  if (!record || !record.id) return;
 
   const colKey = toFirestoreCollectionName(collectionName) || (collectionName.toLowerCase() as FirestoreCollectionKey);
+  const cleanData = queueFirestoreUpsert(colKey, record);
+  if (!firestore) return;
   try {
-    // Strip undefined properties because Firestore rejects undefined values
-    const cleanData: Record<string, any> = {};
-    Object.keys(record).forEach((key) => {
-      if (record[key] !== undefined) {
-        cleanData[key] = record[key];
-      }
-    });
-
     const docRef = doc(firestore, colKey, String(record.id));
     await setDoc(docRef, cleanData, { merge: true });
+    acknowledgeFirestoreUpsert(colKey, cleanData);
   } catch (error) {
     console.error(`[Firestore Error] upsert ${colKey}/${record?.id}:`, error);
+  }
+}
+
+/** Retries writes that were made locally while Firestore was unavailable or unauthenticated. */
+export async function flushPendingFirestoreUpserts(): Promise<void> {
+  const firestore = getFirestoreDb();
+  if (!firestore) return;
+
+  for (const pending of readPendingFirestoreUpserts()) {
+    try {
+      const docRef = doc(firestore, pending.collection, String(pending.record.id));
+      await setDoc(docRef, pending.record, { merge: true });
+      acknowledgeFirestoreUpsert(pending.collection, pending.record);
+    } catch (error) {
+      console.warn(`[Firestore] Escrita pendente mantida para nova tentativa (${pending.collection}/${pending.record.id}):`, error);
+    }
   }
 }
 
@@ -211,10 +304,13 @@ export async function deleteFirestoreRecord(
   collectionName: FirestoreCollectionKey | string,
   id: string
 ): Promise<void> {
-  const firestore = getFirestoreDb();
-  if (!firestore || !id) return;
-
+  if (!id) return;
   const colKey = toFirestoreCollectionName(collectionName) || (collectionName.toLowerCase() as FirestoreCollectionKey);
+  // An explicit delete supersedes any older local upsert for this document.
+  discardPendingFirestoreUpsert(colKey, id);
+  const firestore = getFirestoreDb();
+  if (!firestore) return;
+
   try {
     const docRef = doc(firestore, colKey, String(id));
     await deleteDoc(docRef);
@@ -377,8 +473,9 @@ export function subscribeToFirestore(
         if (isSyncSuspended) return;
         if (isUnconfirmedEmptySnapshot(snap, 'cargas')) return;
         recordSuccessfulSync();
-        const list: CargaRecord[] = [];
+        let list: CargaRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as CargaRecord));
+        list = overlayPendingFirestoreUpserts('cargas', list);
         // Firestore devolve os documentos em ordem de id (uuid), não de data, e
         // essa ordem é o que fica salvo no localStorage. Ordenar já na entrada
         // faz qualquer tela ou PDF herdar a ordem certa, mesmo sem ordenar de novo.
@@ -395,8 +492,9 @@ export function subscribeToFirestore(
         if (isSyncSuspended) return;
         if (isUnconfirmedEmptySnapshot(snap, 'depositos')) return;
         recordSuccessfulSync();
-        const list: DepositoKlabinRecord[] = [];
+        let list: DepositoKlabinRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as DepositoKlabinRecord));
+        list = overlayPendingFirestoreUpserts('depositos', list);
         onCollectionUpdate('Depositos_Klabin', sortByDateDescending(list, (d) => d.date));
       },
       (err) => console.error('[Firestore Error] snapshot depositos:', err)
@@ -410,8 +508,9 @@ export function subscribeToFirestore(
         if (isSyncSuspended) return;
         if (isUnconfirmedEmptySnapshot(snap, 'clientes')) return;
         recordSuccessfulSync();
-        const list: ClientRecord[] = [];
+        let list: ClientRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as ClientRecord));
+        list = overlayPendingFirestoreUpserts('clientes', list);
         onCollectionUpdate('Clientes', list);
       },
       (err) => console.error('[Firestore Error] snapshot clientes:', err)
@@ -425,8 +524,9 @@ export function subscribeToFirestore(
         if (isSyncSuspended) return;
         if (isUnconfirmedEmptySnapshot(snap, 'vendas')) return;
         recordSuccessfulSync();
-        const list: VendaRecord[] = [];
+        let list: VendaRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as VendaRecord));
+        list = overlayPendingFirestoreUpserts('vendas', list);
         onCollectionUpdate('Vendas', sortByDateDescending(list, (v) => v.date));
       },
       (err) => console.error('[Firestore Error] snapshot vendas:', err)
@@ -440,8 +540,9 @@ export function subscribeToFirestore(
         if (isSyncSuspended) return;
         if (isUnconfirmedEmptySnapshot(snap, 'produtos')) return;
         recordSuccessfulSync();
-        const list: ProdutoRecord[] = [];
+        let list: ProdutoRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as ProdutoRecord));
+        list = overlayPendingFirestoreUpserts('produtos', list);
         onCollectionUpdate('Produtos', list);
       },
       (err) => console.error('[Firestore Error] snapshot produtos:', err)
@@ -455,8 +556,9 @@ export function subscribeToFirestore(
         if (isSyncSuspended) return;
         if (isUnconfirmedEmptySnapshot(snap, 'motoristas')) return;
         recordSuccessfulSync();
-        const list: MotoristaRecord[] = [];
+        let list: MotoristaRecord[] = [];
         snap.forEach((d) => list.push({ ...d.data(), id: d.id } as MotoristaRecord));
+        list = overlayPendingFirestoreUpserts('motoristas', list);
         onCollectionUpdate('Motoristas', list);
       },
       (err) => console.error('[Firestore Error] snapshot motoristas:', err)
@@ -508,6 +610,9 @@ export function subscribeToFirestore(
 export async function restoreFirestoreAuthoritatively(
   database: KlabinDatabase
 ): Promise<{ success: boolean; error?: any }> {
+  // The restored database is the new explicit source of truth. Older local
+  // writes must not be replayed after this replacement.
+  writePendingFirestoreUpserts([]);
   const firestore = getFirestoreDb();
   if (!firestore) {
     return { success: true };
