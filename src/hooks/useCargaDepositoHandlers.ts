@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { KlabinDatabase, CargaRecord, DepositoKlabinRecord, TableType } from '../types';
 import { upsertFirestoreRecord, deleteFirestoreRecord } from '../utils/firebaseSync';
 import { isProCabosCarga } from '../utils/proCabos';
+import { discardCargaAttachments } from '../utils/cargaAttachments';
 
 interface UseCargaDepositoHandlersParams {
   database: KlabinDatabase;
@@ -106,6 +107,9 @@ export function useCargaDepositoHandlers({
         Cargas: prev.Cargas.filter((c) => c.id !== id),
       }));
       deleteFirestoreRecord('cargas', id);
+      // Os PDFs anexados ficam só neste computador: a pasta da carga é apagada junto, sem nunca
+      // impedir a exclusão (falha de disco no máximo deixa uma pasta solta, sem referência no app).
+      void discardCargaAttachments(id);
       showToast('Carga excluída com sucesso.');
     } else if (table === 'Depositos_Klabin') {
       mutateDatabase((prev) => ({

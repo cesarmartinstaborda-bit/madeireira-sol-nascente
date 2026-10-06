@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, shell, safeStorage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } = require('electron');
 const path = require('path');
 const { pathToFileURL } = require('node:url');
 const fs = require('fs');
@@ -404,6 +404,20 @@ if (!gotTheLock) {
     requireMainFrame(event);
     clearStoredSession();
     return true;
+  });
+
+  // Anexos PDF das cargas: arquivos locais em userData/attachments (sobrevivem a atualizações do
+  // RPM, nunca vão ao Firestore). Ver electron/localAttachments.js.
+  const { createLocalAttachments } = require(path.join(__dirname, 'electron', 'localAttachments.js'));
+  const { registerAttachmentsIpc } = require(path.join(__dirname, 'electron', 'attachmentsIpc.js'));
+  registerAttachmentsIpc({
+    ipcMain,
+    dialog,
+    shell,
+    requireMainFrame,
+    getWindow: () => mainWindow,
+    getDownloadsDir: () => app.getPath('downloads'),
+    store: createLocalAttachments({ getRootDir: () => path.join(app.getPath('userData'), 'attachments') }),
   });
 
   app.whenReady().then(createWindow);

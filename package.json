@@ -1,7 +1,7 @@
 {
   "name": "madeireira-sol-nascente",
   "private": true,
-  "version": "2.1.2",
+  "version": "2.2.0",
   "description": "Sistema de gestão operacional da Madeireira Sol Nascente",
   "main": "electron.js",
   "scripts": {
@@ -58,6 +58,7 @@
     "files": [
       "dist/**/*",
       "electron.js",
+      "electron/**/*",
       "preload.js",
       "package.json",
       "assets/icon.png"

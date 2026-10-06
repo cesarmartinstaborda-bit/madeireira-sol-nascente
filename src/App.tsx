@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ClientesProdutosDashboard } from './components/ClientesProdutosDashboard';
 import { ConfiguracoesAjustes } from './components/ConfiguracoesAjustes';
 import { ConfirmModal } from './components/ConfirmModal';
@@ -13,6 +13,8 @@ import { TableCaixa } from './components/TableCaixa';
 import { TableMotoristas } from './components/TableMotoristas';
 import { TableResumo } from './components/TableResumo';
 import { useCargaDepositoHandlers } from './hooks/useCargaDepositoHandlers';
+import { useCargaAttachmentHandlers } from './hooks/useCargaAttachmentHandlers';
+import { AttachmentHandlersContext } from './hooks/AttachmentHandlersContext';
 import { useClienteVendaHandlers } from './hooks/useClienteVendaHandlers';
 import { useFreightHandlers } from './hooks/useFreightHandlers';
 import { useKlabinDatabase } from './hooks/useKlabinDatabase';
@@ -82,9 +84,12 @@ export default function App() {
 
 
   // Show transient notification toast
+  // O temporizador anterior é cancelado: sem isso, um aviso novo era apagado cedo pelo relógio do antigo.
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setToastMessage(null), 3500);
   };
 
   // Discreet feedback when an auto-generated PDF is (or isn't) mirrored to Google Drive
@@ -200,6 +205,9 @@ export default function App() {
     showToast,
     isDateLocked,
   });
+
+  // Anexos PDF das cargas (armazenamento local deste computador; fora do banco e do Firestore)
+  const attachmentHandlers = useCargaAttachmentHandlers({ database, showToast, isDateLocked });
 
   // Generic RecordModal dispatcher — delegates the upsert to whichever domain hook
   // owns the target collection. Only Cargas/Depositos_Klabin are reachable today.
@@ -318,6 +326,7 @@ export default function App() {
   };
 
   return (
+    <AttachmentHandlersContext.Provider value={attachmentHandlers}>
     <div className="mac-window min-h-screen bg-[var(--graphite-bg)] text-[var(--graphite-text-primary)] font-sans flex antialiased">
       {/* Left Sidebar Navigation - 5 Modules Only */}
       <Sidebar
@@ -502,6 +511,8 @@ export default function App() {
         motoristas={database.Motoristas || []}
         freightRatePerTon={database.appSettings?.freightRatePerTon || 15}
         defaultDeductFromBalance={database.appSettings?.klabin?.defaultDeductFromBalance ?? true}
+        attachmentHandlers={attachmentHandlers}
+        isDateLocked={isDateLocked}
       />
 
       {/* Delete Confirmation Modal */}
@@ -519,11 +530,12 @@ export default function App() {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed bottom-5 right-5 z-50 bg-[#16191f] text-slate-100 text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl border border-[var(--graphite-border-base)] flex items-center space-x-2.5">
+        <div className="fixed bottom-5 right-5 z-[60] bg-[#16191f] text-slate-100 text-xs font-semibold px-4 py-3 rounded-xl shadow-2xl border border-[var(--graphite-border-base)] flex items-center space-x-2.5">
           <div className="w-2 h-2 rounded-full bg-[var(--graphite-accent-blue)] animate-pulse" />
           <span>{toastMessage}</span>
         </div>
       )}
     </div>
+    </AttachmentHandlersContext.Provider>
   );
 }

@@ -183,3 +183,21 @@ describe('App — contratos entre abas', () => {
     expect(screen.getByText('Últimas Movimentações Operacionais')).toBeTruthy();
   });
 });
+
+describe('App — avisos (toast)', () => {
+  it('um aviso novo não é apagado cedo pelo temporizador do aviso anterior', () => {
+    vi.useRealTimers(); vi.useFakeTimers(); // o beforeEach só simula Date; aqui os temporizadores também
+    render(<App />);
+    const toggle = () => screen.getAllByRole('button', { name: /^(Aberto|Fechado)$/ })[0];
+    const toast = /Ciclo de .* (fechado|reaberto)\./;
+
+    fireEvent.click(toggle());                        // aviso 1 (some em 3,5 s)
+    expect(screen.getByText(toast)).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(3000); });
+    fireEvent.click(toggle());                        // aviso 2, 3 s depois (some em 6,5 s)
+    act(() => { vi.advanceTimersByTime(1000); });     // 4 s: o relógio do aviso 1 já venceu
+    expect(screen.getByText(toast)).toBeTruthy();
+    act(() => { vi.advanceTimersByTime(3000); });     // 7 s: o aviso 2 já expirou
+    expect(screen.queryByText(toast)).toBeNull();
+  });
+});

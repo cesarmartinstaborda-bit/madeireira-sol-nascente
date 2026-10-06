@@ -1,10 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { TableType, ProdutoRecord, ClientRecord, MotoristaRecord } from '../types';
 import { generateId } from '../utils/idGenerator';
 import { formatBRLCurrencyInput, formatCurrency, parseBRLCurrency } from '../utils/formatters';
 import { PRO_CABOS_LABOR_RATE_PER_TON, calcProCabosAmountDue, getProCabosLaborRate, isProCabosCarga } from '../utils/proCabos';
 import { X, Save, AlertCircle } from 'lucide-react';
+import { CargaAttachmentsSection } from './CargaAttachmentsSection';
+import type { CargaAttachmentHandlers } from '../hooks/useCargaAttachmentHandlers';
 
 interface RecordModalProps {
   isOpen: boolean;
@@ -17,6 +19,9 @@ interface RecordModalProps {
   motoristas: MotoristaRecord[];
   freightRatePerTon: number;
   defaultDeductFromBalance?: boolean;
+  /** Operações de anexo PDF (armazenamento local). Sem isto, o formulário não mostra a seção "Anexos". */
+  attachmentHandlers?: CargaAttachmentHandlers;
+  isDateLocked?: (dateStr?: string) => boolean;
 }
 
 export const RecordModal: React.FC<RecordModalProps> = ({
@@ -30,8 +35,22 @@ export const RecordModal: React.FC<RecordModalProps> = ({
   motoristas,
   freightRatePerTon,
   defaultDeductFromBalance = true,
+  attachmentHandlers,
+  isDateLocked,
 }) => {
   const isDeposito = tableType === 'Depositos_Klabin';
+
+  // Carga nova: o id é reservado ao abrir o formulário (e não só ao salvar) para que os PDFs
+  // anexados antes de salvar já fiquem na pasta da carga que vai existir. `attachmentsSavedRef`
+  // diz à seção de anexos que a carga foi salva (os PDFs ficam) ou não (a pasta reservada é apagada).
+  const [draftCargaId, setDraftCargaId] = useState(() => generateId('crg'));
+  const attachmentsSavedRef = useRef(false);
+  useEffect(() => {
+    if (isOpen) {
+      attachmentsSavedRef.current = false;
+      setDraftCargaId(generateId('crg'));
+    }
+  }, [isOpen]);
 
   // Common date
   const [date, setDate] = useState(() => new Date().toISOString().split('T')[0]);
@@ -267,7 +286,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
         produtos.find((p) => p.name.trim().toLowerCase() === product.trim().toLowerCase());
 
       const success = onSave({
-        id: recordToEdit?.id || generateId('crg'),
+        id: recordToEdit?.id || draftCargaId,
         date,
         invoiceNumber: recordToEdit?.invoiceNumber || '',
         supplier: recordToEdit?.supplier || 'Klabin',
@@ -301,6 +320,7 @@ export const RecordModal: React.FC<RecordModalProps> = ({
       });
 
       if (success !== false) {
+        attachmentsSavedRef.current = true;
         onClose();
       }
     }
@@ -529,6 +549,18 @@ export const RecordModal: React.FC<RecordModalProps> = ({
                 <span className="text-slate-400 font-medium">Fornecedor</span>
                 <span className="text-white font-bold tracking-wide">Klabin</span>
               </div>
+
+              {attachmentHandlers && (
+                <CargaAttachmentsSection
+                  key={recordToEdit?.id || draftCargaId}
+                  cargaId={recordToEdit?.id || draftCargaId}
+                  isNewCarga={!recordToEdit}
+                  date={date}
+                  locked={Boolean(isDateLocked && isDateLocked(date))}
+                  handlers={attachmentHandlers}
+                  savedRef={attachmentsSavedRef}
+                />
+              )}
             </>
           )}
 

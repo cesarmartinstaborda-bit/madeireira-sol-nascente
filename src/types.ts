@@ -15,6 +15,17 @@ export type TableType =
   | 'Caixa'
   | 'Frete';
 
+/**
+ * PDF anexado a uma carga. Vive somente neste computador (pasta de dados do aplicativo) e NÃO
+ * faz parte de `CargaRecord`: não entra no banco local, no Firestore nem nos backups JSON.
+ */
+export interface CargaAttachment {
+  id: string;
+  fileName: string;
+  sizeBytes: number;
+  addedAt: string;
+}
+
 export interface CargaRecord {
   id: string;
   date: string;

@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useContext, useState } from 'react';
 import { CargaRecord, ProdutoRecord, MotoristaRecord } from '../types';
 import { formatCurrency, formatNumber, formatDateBR } from '../utils/formatters';
 import { isDeductedFromBalance } from '../utils/klabinBalance';
 import { isProCabosCarga } from '../utils/proCabos';
-import { Truck, Edit2, Trash2, Plus, Lock } from 'lucide-react';
+import { Truck, Edit2, Trash2, Plus, Lock, Paperclip } from 'lucide-react';
+import { useAttachmentCounts } from '../hooks/useAttachmentCounts';
+import { AttachmentHandlersContext } from '../hooks/AttachmentHandlersContext';
+import { CargaAttachmentsModal } from './CargaAttachmentsModal';
 import { sortByDateDescending } from '../utils/dateSorting';
 
 interface TableCargasProps {
@@ -32,6 +35,10 @@ export const TableCargas: React.FC<TableCargasProps> = ({
   freightRatePerTon = 15,
   readOnly = false,
 }) => {
+  // Anexos PDF (locais): carga sem anexo não ganha nada na linha.
+  const attachmentCounts = useAttachmentCounts();
+  const attachmentHandlers = useContext(AttachmentHandlersContext);
+  const [attachmentsOf, setAttachmentsOf] = useState<CargaRecord | null>(null);
   const filteredRecords = sortByDateDescending(records.filter((r) => {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
@@ -105,6 +112,29 @@ export const TableCargas: React.FC<TableCargasProps> = ({
                         <div className="flex items-center space-x-1">
                           {locked && <Lock className="w-3 h-3 text-amber-400" />}
                           <span>{formatDateBR(r.date)}</span>
+                          {attachmentCounts[r.id] > 0 &&
+                            (attachmentHandlers ? (
+                              <button
+                                type="button"
+                                onClick={() => setAttachmentsOf(r)}
+                                className="inline-flex items-center gap-0.5 ml-1 text-[10px] font-semibold text-slate-400 hover:text-blue-400 rounded transition-colors"
+                                title={`${attachmentCounts[r.id]} anexo${attachmentCounts[r.id] > 1 ? 's' : ''} PDF — clique para ver`}
+                                aria-label={`Ver anexos (${attachmentCounts[r.id]})`}
+                                data-testid="attachment-indicator"
+                              >
+                                <Paperclip className="w-3 h-3" />
+                                {attachmentCounts[r.id]}
+                              </button>
+                            ) : (
+                              <span
+                                className="inline-flex items-center gap-0.5 ml-1 text-[10px] font-semibold text-slate-400"
+                                title={`${attachmentCounts[r.id]} anexo${attachmentCounts[r.id] > 1 ? 's' : ''} PDF`}
+                                data-testid="attachment-indicator"
+                              >
+                                <Paperclip className="w-3 h-3" />
+                                {attachmentCounts[r.id]}
+                              </span>
+                            ))}
                         </div>
                       </td>
                       <td className="py-2.5 px-3 font-semibold text-white">
@@ -176,6 +206,15 @@ export const TableCargas: React.FC<TableCargasProps> = ({
           </table>
         </div>
       </div>
+
+      {attachmentsOf && attachmentHandlers && (
+        <CargaAttachmentsModal
+          carga={attachmentsOf}
+          locked={isLocked(attachmentsOf.date)}
+          handlers={attachmentHandlers}
+          onClose={() => setAttachmentsOf(null)}
+        />
+      )}
     </div>
   );
 };
