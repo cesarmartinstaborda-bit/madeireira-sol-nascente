@@ -77,6 +77,33 @@ describe('Gestão de Motoristas — abas de fretes pendentes x quitados', () => 
     expect(screen.queryByText('15/07/2026')).toBeNull();
   });
 
+  it('na aba "Fretes Quitados" o motorista mostra o total quitado, sem "Pendente R$ 0,00"', () => {
+    renderTela({
+      cargas: [carga('c2', '2026-07-15', { freightStatus: 'PAID', freightPaidAt: '2026-07-20' })],
+    });
+
+    goToTab('Fretes Quitados');
+    const card = screen.getByText(/João Silva/).closest('.glass-card-static') as HTMLElement;
+    const header = card.firstElementChild as HTMLElement;
+    expect(header.textContent).toMatch(/Quitado/);
+    expect(header.textContent).toMatch(/150,00/);
+    expect(header.textContent).not.toMatch(/Pendente/);
+    expect(header.textContent).not.toMatch(/0,00\s*$/);
+
+    // A aba de pendentes continua como antes.
+    goToTab('Contas de Frete por Motorista');
+    expect(screen.queryByText(/João Silva/)).toBeNull();
+  });
+
+  it('na aba de pendentes o cabeçalho do motorista continua mostrando "Pendente" com o valor em aberto', () => {
+    renderTela({ cargas: [carga('c1', '2026-08-26')] });
+    const card = screen.getByText(/João Silva/).closest('.glass-card-static') as HTMLElement;
+    const header = card.firstElementChild as HTMLElement;
+    expect(header.textContent).toMatch(/Pendente/);
+    expect(header.textContent).toMatch(/150,00/);
+    expect(header.textContent).not.toMatch(/Quitado/);
+  });
+
   it('a aba "Fretes Quitados" tem ação "Reverter para Pendente" por linha que chama onToggleSingleFreight', () => {
     const onToggleSingleFreight = vi.fn();
     renderTela({

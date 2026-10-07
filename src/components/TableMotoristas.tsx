@@ -217,9 +217,15 @@ export const TableMotoristas: React.FC<TableMotoristasProps> = ({
 
                 <div className="flex items-center space-x-3">
                   <div className="text-right">
-                    <span className="text-[10px] uppercase font-semibold text-slate-400 block">Pendente</span>
-                    <span className="text-xs font-extrabold text-amber-400 font-mono">
-                      {formatCurrency(group.pendingFreightCost)}
+                    <span className="text-[10px] uppercase font-semibold text-slate-400 block">
+                      {mode === 'PAID' ? 'Quitado' : 'Pendente'}
+                    </span>
+                    <span
+                      className={`text-xs font-extrabold ${
+                        mode === 'PAID' ? 'text-emerald-400' : 'text-amber-400'
+                      } font-mono`}
+                    >
+                      {formatCurrency(mode === 'PAID' ? group.paidFreightCost : group.pendingFreightCost)}
                     </span>
                   </div>
 

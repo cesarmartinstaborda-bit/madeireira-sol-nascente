@@ -30,6 +30,13 @@ import { splitProCabosCargas } from './utils/proCabos';
 import { mergeAppSettings } from './utils/settings/mergeAppSettings';
 import { createAutoBackup, saveDatabase, validateAndSanitizeBackupJSON } from './utils/storage';
 
+type CadastroKind = 'cliente' | 'produto' | 'motorista';
+const CADASTRO_LABELS: Record<CadastroKind, string> = {
+  cliente: 'Cliente',
+  produto: 'Produto',
+  motorista: 'Motorista',
+};
+
 export default function App() {
   const { database, setDatabase, mutateDatabase } = useKlabinDatabase();
   const [activeTable, setActiveTable] = useState<TableType>(() => {
@@ -248,6 +255,29 @@ export default function App() {
     isDateLocked,
   });
 
+  // A exclusão de cliente, produto e motorista só roda depois da confirmação do usuário.
+  const [pendingCadastroDelete, setPendingCadastroDelete] = useState<{
+    kind: CadastroKind;
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const requestCadastroDelete = (kind: CadastroKind, id: string) => {
+    const list =
+      kind === 'cliente' ? database.Clientes : kind === 'produto' ? database.Produtos : database.Motoristas;
+    const item = ((list || []) as { id: string; name?: string }[]).find((entry) => entry.id === id);
+    setPendingCadastroDelete({ kind, id, name: item?.name || '' });
+  };
+
+  const confirmCadastroDelete = () => {
+    const target = pendingCadastroDelete;
+    setPendingCadastroDelete(null);
+    if (!target) return;
+    if (target.kind === 'cliente') handleDeleteClient(target.id);
+    else if (target.kind === 'produto') handleDeleteProduto(target.id);
+    else handleDeleteDriver(target.id);
+  };
+
   // Authoritative Restore Backup (invoked from Configuracoes auto-backups)
   const handleRestoreBackup = async (
     importedData: any,
@@ -415,14 +445,14 @@ export default function App() {
               searchTerm={searchTerm}
               onAddClient={handleAddClient}
               onUpdateClient={handleUpdateClient}
-              onDeleteClient={handleDeleteClient}
+              onDeleteClient={(id) => requestCadastroDelete('cliente', id)}
               onAddVenda={handleAddVenda}
               onUpdateVenda={handleUpdateVenda}
               onDeleteVenda={handleDeleteVenda}
               onToggleVendaStatus={handleToggleVendaStatus}
               onAddProduto={handleAddProduto}
               onUpdateProduto={handleUpdateProduto}
-              onDeleteProduto={handleDeleteProduto}
+              onDeleteProduto={(id) => requestCadastroDelete('produto', id)}
               lockedMonths={lockedMonths}
               initialSubTab={activeTable === 'Produtos' ? 'PRODUTOS' : 'CLIENTES_VENDAS'}
               appSettings={database.appSettings}
@@ -442,7 +472,7 @@ export default function App() {
               onToggleSingleFreight={handleToggleSingleFreight}
               onAddMotorista={handleAddMotorista}
               onUpdateMotorista={handleUpdateMotorista}
-              onDeleteMotorista={handleDeleteDriver}
+              onDeleteMotorista={(id) => requestCadastroDelete('motorista', id)}
               lockedMonths={lockedMonths}
               appSettings={database.appSettings}
               customLogo={database.customLogo}
@@ -526,6 +556,19 @@ export default function App() {
         }
         onClose={cancelDelete}
         onConfirm={handleConfirmDelete}
+      />
+
+      {/* Confirmação de exclusão de cliente, produto ou motorista */}
+      <ConfirmModal
+        isOpen={pendingCadastroDelete !== null}
+        title={pendingCadastroDelete ? `Excluir ${CADASTRO_LABELS[pendingCadastroDelete.kind]}` : ''}
+        message={
+          pendingCadastroDelete
+            ? `Tem certeza de que deseja excluir ${pendingCadastroDelete.name ? `"${pendingCadastroDelete.name}"` : `este ${CADASTRO_LABELS[pendingCadastroDelete.kind].toLowerCase()}`}? Esta ação será sincronizada.`
+            : ''
+        }
+        onClose={() => setPendingCadastroDelete(null)}
+        onConfirm={confirmCadastroDelete}
       />
 
       {/* Toast Notification */}
