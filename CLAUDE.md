@@ -236,3 +236,9 @@ npx ruflo@latest doctor --fix
 - Só interrompa para uma decisão indispensável, bloqueio real ou risco relevante.
 - No final, escreva em português do Brasil um resumo curto: o que mudou, os testes necessários executados e pendências/bloqueios. Não reproduza logs, diffs ou relatórios longos sem solicitação.
 - Minimize leitura excessiva de arquivos e saídas de comandos, sem omitir validação pertinente nem a atualização do Notion.
+
+## Continuidade no Notion
+
+- Antes de tarefa relevante, consulte a memória deste projeto: https://app.notion.com/p/3d65bb178c3781d29a30dda07f2b0a3f, especialmente Estado Atual, Decisões e Backlog conforme necessário. O código local prevalece sobre registros desatualizados.
+- Ao concluir alteração material, atualize no Notion o Estado Atual, Worklog, decisões e pendências pertinentes, com fatos verificados e sem despejar diffs ou logs extensos.
+- Se não houver acesso ao Notion, informe brevemente e não finja ter sincronizado.
