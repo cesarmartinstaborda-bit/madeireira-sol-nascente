@@ -222,3 +222,17 @@ npx ruflo@latest doctor --fix
 > by default; `--ttl 0` to disable, `daemon status --all` to audit running daemons).
 
 **Agent tool** handles execution (agents, files, code, git). **MCP tools** handle coordination (swarm, memory, hooks). **CLI** is the same via Bash.
+
+## Memória do projeto no Notion
+
+- Memória compartilhada: https://app.notion.com/p/3d65bb178c3781d29a30dda07f2b0a3f
+- Antes de tarefa material, consulte Estado Atual e Backlog, além das decisões e arquitetura pertinentes. O código local é a fonte da verdade.
+- Após mudanças materiais, atualize no Notion o estado, decisões, worklog e pendências relevantes. Registre somente ações verificadas, distinguindo código local de commit e release. Preserve o histórico; evite duplicação e transcrição de logs.
+- Se o Notion estiver indisponível, informe isso resumidamente e não afirme que sincronizou.
+
+## Comunicação econômica com o usuário
+
+- Trabalhe sem narrar cada passo, anunciar comandos ou enviar atualizações pequenas e repetitivas no chat.
+- Só interrompa para uma decisão indispensável, bloqueio real ou risco relevante.
+- No final, escreva em português do Brasil um resumo curto: o que mudou, os testes necessários executados e pendências/bloqueios. Não reproduza logs, diffs ou relatórios longos sem solicitação.
+- Minimize leitura excessiva de arquivos e saídas de comandos, sem omitir validação pertinente nem a atualização do Notion.
