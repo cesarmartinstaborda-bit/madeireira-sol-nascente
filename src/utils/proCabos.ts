@@ -1,6 +1,10 @@
 import { CargaRecord } from '../types';
 
 /** Tarifa vigente de mão de obra da Pro Cabos (R$/t), copiada para a carga no momento da marcação. */
+// Aba Pro Cabos oculta temporariamente da interface (menu lateral e retorno à última aba).
+// O módulo, os dados e os cálculos seguem intactos; para reexibir, troque para true.
+export const PRO_CABOS_TAB_VISIBLE = false;
+
 export const PRO_CABOS_LABOR_RATE_PER_TON = 115;
 
 type ProCabosFields = Pick<CargaRecord, 'quantityTons' | 'valuePerTon' | 'proCabos' | 'proCabosLaborRatePerTon'>;

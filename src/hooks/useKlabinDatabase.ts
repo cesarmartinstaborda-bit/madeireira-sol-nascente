@@ -7,7 +7,9 @@ import {
   checkAndSeedFirestoreIfEmpty,
   flushPendingFirestoreUpserts,
   isFirebaseConfigured,
+  restoreFirestoreAuthoritatively,
 } from '../utils/firebaseSync';
+import { hasPendingFirestoreRestore } from '../utils/firestorePendingOps';
 
 /**
  * Owns the application database state: local persistence and real-time Firestore sync.
@@ -60,11 +62,18 @@ export function useKlabinDatabase() {
       // must be uploaded before retrying individual queued records. Running both
       // checks concurrently could make one queued document render the cloud
       // non-empty and prevent the remaining local records from being seeded.
-      checkAndSeedFirestoreIfEmpty(databaseRef.current)
+      // A restauração de backup que não chegou à nuvem (sem login/conexão) é refeita
+      // primeiro, com o estado local atual; snapshots ficam ignorados até ela confirmar.
+      const initialSync = hasPendingFirestoreRestore()
+        ? restoreFirestoreAuthoritatively(databaseRef.current).then((result) => {
+            if (!result.success) throw new Error('Restauração pendente ainda não sincronizada.');
+          })
+        : checkAndSeedFirestoreIfEmpty(databaseRef.current).then(() => undefined);
+      initialSync
         .catch((err) => {
           console.warn('[Firestore] Inicialização:', err);
         })
-        .then(() => flushPendingFirestoreUpserts())
+        .then(() => (hasPendingFirestoreRestore() ? undefined : flushPendingFirestoreUpserts()))
         .catch((err) => {
           console.warn('[Firestore] Reenvio de alterações locais pendentes:', err);
         });

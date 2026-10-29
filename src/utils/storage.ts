@@ -70,6 +70,9 @@ function getCanonicalDatabaseString(db: KlabinDatabase): string {
     Vendas: clean.Vendas,
     Produtos: clean.Produtos,
     Motoristas: clean.Motoristas,
+    MaoDeObra_Lancamentos: clean.MaoDeObra_Lancamentos,
+    MaoDeObra_Clientes: clean.MaoDeObra_Clientes,
+    MaoDeObra_Produtos: clean.MaoDeObra_Produtos,
   });
 }
 

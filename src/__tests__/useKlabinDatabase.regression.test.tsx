@@ -1,8 +1,8 @@
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import { regressionDatabase } from './fixtures/regressionDatabase';
-const cloud = vi.hoisted(() => ({ listener: null as any, unsubscribe: vi.fn(), seed: vi.fn().mockResolvedValue(false), flush: vi.fn().mockResolvedValue(undefined) }));
-vi.mock('../utils/firebaseSync', () => ({ subscribeToFirestore: (cb: any) => { cloud.listener = cb; return cloud.unsubscribe; }, checkAndSeedFirestoreIfEmpty: cloud.seed, flushPendingFirestoreUpserts: cloud.flush, isFirebaseConfigured: () => true }));
+const cloud = vi.hoisted(() => ({ listener: null as any, unsubscribe: vi.fn(), seed: vi.fn().mockResolvedValue(false), flush: vi.fn().mockResolvedValue(undefined), restore: vi.fn().mockResolvedValue({ success: true }) }));
+vi.mock('../utils/firebaseSync', () => ({ subscribeToFirestore: (cb: any) => { cloud.listener = cb; return cloud.unsubscribe; }, checkAndSeedFirestoreIfEmpty: cloud.seed, flushPendingFirestoreUpserts: cloud.flush, restoreFirestoreAuthoritatively: cloud.restore, isFirebaseConfigured: () => true }));
 // A sincronização agora espera o Firebase Auth: `auth.current` é o usuário no
 // mount e `auth.cb` deixa o teste disparar login/logout depois.
 const auth = vi.hoisted(() => ({ cb: null as null | ((u: any) => void), current: null as any }));
@@ -81,4 +81,27 @@ it('login tardio usa dados locais atuais e callbacks após logout não sobrescre
   act(() => auth.cb!(null));
   act(() => lateSnapshot('Depositos_Klabin', []));
   expect(result.current.database.Depositos_Klabin[0].id).toBe('latest');
+});
+
+it('no login, refaz a restauração pendente com o banco local antes de qualquer envio e não semeia a nuvem', async () => {
+  localStorage.setItem('klabin_firestore_pending_restore_v1', '2026-09-06T11:00:00.000Z');
+  cloud.restore.mockImplementationOnce(async () => {
+    localStorage.removeItem('klabin_firestore_pending_restore_v1');
+    return { success: true };
+  });
+  renderHook(() => useKlabinDatabase());
+  await vi.waitFor(() => expect(cloud.flush).toHaveBeenCalledTimes(1));
+  expect(cloud.restore).toHaveBeenCalledWith(expect.objectContaining({ Cargas: sanitizeDatabase(regressionDatabase()).Cargas }));
+  expect(cloud.seed).not.toHaveBeenCalled();
+});
+
+it('se a restauração pendente falhar de novo, nada é reenviado e a marca continua', async () => {
+  localStorage.setItem('klabin_firestore_pending_restore_v1', '2026-09-06T11:00:00.000Z');
+  cloud.restore.mockResolvedValueOnce({ success: false });
+  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  renderHook(() => useKlabinDatabase());
+  await vi.waitFor(() => expect(warn).toHaveBeenCalledWith('[Firestore] Inicialização:', expect.any(Error)));
+  await Promise.resolve(); await Promise.resolve();
+  expect(cloud.flush).not.toHaveBeenCalled();
+  expect(localStorage.getItem('klabin_firestore_pending_restore_v1')).not.toBeNull();
 });

@@ -6,6 +6,7 @@ import { DashboardOverview } from './components/DashboardOverview';
 import { Header } from './components/Header';
 import { HistoricoDashboard } from './components/HistoricoDashboard';
 import { KlabinDashboard } from './components/KlabinDashboard';
+import { MaoDeObraDashboard } from './components/maoDeObra/MaoDeObraDashboard';
 import { ProCabosDashboard } from './components/ProCabosDashboard';
 import { RecordModal } from './components/RecordModal';
 import { Sidebar } from './components/Sidebar';
@@ -18,6 +19,7 @@ import { AttachmentHandlersContext } from './hooks/AttachmentHandlersContext';
 import { useClienteVendaHandlers } from './hooks/useClienteVendaHandlers';
 import { useFreightHandlers } from './hooks/useFreightHandlers';
 import { useKlabinDatabase } from './hooks/useKlabinDatabase';
+import { useMaoDeObraHandlers } from './hooks/useMaoDeObraHandlers';
 import { useMotoristaHandlers } from './hooks/useMotoristaHandlers';
 import { useProdutoHandlers } from './hooks/useProdutoHandlers';
 import { AppSettings, TableType } from './types';
@@ -25,8 +27,9 @@ import { computeDashboardMetrics } from './utils/dashboard/computedMetrics';
 import { exportActiveTable } from './utils/exports/exportActiveTable';
 import { restoreFirestoreAuthoritatively, syncFirestoreSettings, } from './utils/firebaseSync';
 import { formatMonthYearBR, isMonthLocked } from './utils/formatters';
+import { splitMaoDeObraLancamentos } from './utils/maoDeObra';
 import { splitKlabinRecordsByCompetency } from './utils/klabinBalance';
-import { splitProCabosCargas } from './utils/proCabos';
+import { PRO_CABOS_TAB_VISIBLE, splitProCabosCargas } from './utils/proCabos';
 import { mergeAppSettings } from './utils/settings/mergeAppSettings';
 import { createAutoBackup, saveDatabase, validateAndSanitizeBackupJSON } from './utils/storage';
 
@@ -44,8 +47,8 @@ export default function App() {
       const pref = localStorage.getItem('app_startup_preference');
       if (pref === 'LAST_USED') {
         const last = localStorage.getItem('app_last_active_table') as TableType;
-        const validModules: TableType[] = ['Dashboard', 'Klabin', 'ProCabos', 'Clientes_Produtos', 'Motoristas', 'Historico', 'Configuracoes'];
-        if (last && validModules.includes(last)) {
+        const validModules: TableType[] = ['Dashboard', 'Klabin', 'MaoDeObra', 'ProCabos', 'Clientes_Produtos', 'Motoristas', 'Historico', 'Configuracoes'];
+        if (last && validModules.includes(last) && (PRO_CABOS_TAB_VISIBLE || last !== 'ProCabos')) {
           return last;
         }
       }
@@ -171,7 +174,7 @@ export default function App() {
     setSearchTerm('');
 
     try {
-      const validModules: TableType[] = ['Dashboard', 'Klabin', 'ProCabos', 'Clientes_Produtos', 'Motoristas', 'Historico', 'Configuracoes'];
+      const validModules: TableType[] = ['Dashboard', 'Klabin', 'MaoDeObra', 'ProCabos', 'Clientes_Produtos', 'Motoristas', 'Historico', 'Configuracoes'];
       if (validModules.includes(targetMainModule)) {
         localStorage.setItem('app_last_active_table', targetMainModule);
       }
@@ -255,6 +258,14 @@ export default function App() {
     isDateLocked,
   });
 
+  // MÃO DE OBRA HANDLERS (lançamentos e cadastros próprios do módulo)
+  const maoDeObraHandlers = useMaoDeObraHandlers({
+    database,
+    mutateDatabase,
+    showToast,
+    isDateLocked,
+  });
+
   // A exclusão de cliente, produto e motorista só roda depois da confirmação do usuário.
   const [pendingCadastroDelete, setPendingCadastroDelete] = useState<{
     kind: CadastroKind;
@@ -303,7 +314,12 @@ export default function App() {
     // Save a safety backup of current state BEFORE applying restore
     createAutoBackup(database, { force: true });
 
-    const cleanDb = result.sanitizedDb;
+    // Backups anteriores ao módulo Mão de Obra não têm essas listas: a restauração
+    // mantém os dados atuais do módulo em vez de apagá-los (inclusive na nuvem).
+    const cleanDb = { ...result.sanitizedDb };
+    for (const key of ['MaoDeObra_Lancamentos', 'MaoDeObra_Clientes', 'MaoDeObra_Produtos'] as const) {
+      if (!Array.isArray(importedData?.[key])) (cleanDb as any)[key] = database[key] || [];
+    }
 
     // Apply local state without triggering additional auto-backup
     saveDatabase(cleanDb, { createBackup: false });
@@ -314,13 +330,13 @@ export default function App() {
     if (syncRes.success) {
       showToast('Backup restaurado com sucesso.');
     } else {
-      showToast('Os dados foram restaurados localmente, mas ocorreu uma falha ao sincronizar com o Firebase.');
+      showToast('Os dados foram restaurados localmente, mas ocorreu uma falha ao sincronizar com o Firebase. A sincronização será refeita automaticamente no próximo login.');
     }
   };
 
   // Export CSV for active table
   const handleExportCSV = () => {
-    if (activeTable === 'Dashboard' || activeTable === 'Historico' || activeTable === 'ProCabos') return;
+    if (activeTable === 'Dashboard' || activeTable === 'Historico' || activeTable === 'ProCabos' || activeTable === 'MaoDeObra') return;
 
     exportActiveTable(activeTable, klabinSubTab, database, computedMetrics);
     showToast(`Arquivo CSV exportado com sucesso.`);
@@ -373,6 +389,7 @@ export default function App() {
           Produtos: database.Produtos?.length || 0,
           Historico: closedCargas.length + closedDepositos.length,
           ProCabos: splitProCabosCargas(database.Cargas).open.length,
+          MaoDeObra: splitMaoDeObraLancamentos(database.MaoDeObra_Lancamentos || []).pending.length,
         }}
         customLogo={database.customLogo}
         onUpdateCustomLogo={handleUpdateCustomLogo}
@@ -422,6 +439,22 @@ export default function App() {
               initialSubTab={klabinSubTab}
               appSettings={database.appSettings}
               customLogo={database.customLogo}
+            />
+          )}
+
+          {activeTable === 'MaoDeObra' && (
+            <MaoDeObraDashboard
+              lancamentos={database.MaoDeObra_Lancamentos || []}
+              clientes={database.MaoDeObra_Clientes || []}
+              produtos={database.MaoDeObra_Produtos || []}
+              isDateLocked={isDateLocked}
+              onSaveLancamento={maoDeObraHandlers.handleSaveLancamento}
+              onDeleteLancamento={maoDeObraHandlers.handleDeleteLancamento}
+              onSetLancamentoStatus={maoDeObraHandlers.handleSetLancamentoStatus}
+              onSaveCliente={maoDeObraHandlers.handleSaveCliente}
+              onDeleteCliente={maoDeObraHandlers.handleDeleteCliente}
+              onSaveProduto={maoDeObraHandlers.handleSaveProduto}
+              onDeleteProduto={maoDeObraHandlers.handleDeleteProduto}
             />
           )}
 

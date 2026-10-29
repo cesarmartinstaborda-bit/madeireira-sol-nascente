@@ -26,6 +26,12 @@ vi.mock('../utils/googleAuth', () => ({
 vi.mock('@/assets/icon.png', () => ({ default: '/test-icon.png' }));
 vi.mock('../utils/pdfGenerator', () => ({ generateKlabinStatementPdf: vi.fn(() => true) }));
 
+// A aba está oculta na interface (PRO_CABOS_TAB_VISIBLE = false); estes testes exercitam o módulo reexibido.
+vi.mock('../utils/proCabos', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../utils/proCabos')>()),
+  PRO_CABOS_TAB_VISIBLE: true,
+}));
+
 import App from '../App';
 import { RecordModal } from '../components/RecordModal';
 import { calcProCabosOutstanding, splitProCabosCargas } from '../utils/proCabos';
@@ -119,14 +125,15 @@ describe('Pro Cabos — situação financeira (regra)', () => {
 });
 
 describe('Módulo Pro Cabos', () => {
-  it('fica na Sidebar logo abaixo de Klabin e acima de Clientes & Produtos, com as cargas em aberto no contador', () => {
+  it('fica na Sidebar logo abaixo de Klabin e Mão de Obra e acima de Clientes & Produtos, com as cargas em aberto no contador', () => {
     seedDatabase();
     render(<App />);
     const labels = aside().getAllByRole('button').map((b) => b.textContent || '');
     const klabin = labels.findIndex((t) => t.startsWith('Klabin'));
-    expect(labels[klabin + 1]).toMatch(/^Pro Cabos/);
-    expect(labels[klabin + 2]).toMatch(/^Clientes & Produtos/);
-    expect(labels[klabin + 1]).toMatch(/2$/);
+    expect(labels[klabin + 1]).toMatch(/^Mão de Obra/);
+    expect(labels[klabin + 2]).toMatch(/^Pro Cabos/);
+    expect(labels[klabin + 3]).toMatch(/^Clientes & Produtos/);
+    expect(labels[klabin + 2]).toMatch(/2$/);
   });
 
   it('mostra só cargas Pro Cabos, em ordem de data decrescente, sem criar nem exportar', () => {

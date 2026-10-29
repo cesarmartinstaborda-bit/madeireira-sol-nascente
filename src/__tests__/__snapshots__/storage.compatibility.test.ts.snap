@@ -45,6 +45,9 @@ exports[`mantém normalização, campos legados, relações por nome e registros
     },
   ],
   "Frete": [],
+  "MaoDeObra_Clientes": [],
+  "MaoDeObra_Lancamentos": [],
+  "MaoDeObra_Produtos": [],
   "Motoristas": [
     {
       "createdAt": "2026-08-01T12:00:00Z",
@@ -141,6 +144,9 @@ exports[`mantém normalização, campos legados, relações por nome e registros
     "Clientes": [],
     "Depositos_Klabin": [],
     "Frete": [],
+    "MaoDeObra_Clientes": [],
+    "MaoDeObra_Lancamentos": [],
+    "MaoDeObra_Produtos": [],
     "Motoristas": [],
     "Produtos": [],
     "Vendas": [],

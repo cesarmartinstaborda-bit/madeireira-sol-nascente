@@ -101,10 +101,42 @@ const deadline = setTimeout(() => { app.kill(); process.exit(1); }, 60000);
     assert.ok(text.includes(expected), `Screen did not update: ${label}`);
     navigation.push(label);
   }
+  // React controls the inputs: set the value through the native setter and fire the event.
+  async function fill(selector, value) {
+    const result = await send('Runtime.evaluate', {
+      expression: `(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false;
+        const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, ${JSON.stringify(value)});
+        el.dispatchEvent(new Event(el instanceof HTMLSelectElement ? 'change' : 'input', { bubbles: true })); return true; })()`,
+      returnByValue: true,
+    });
+    assert.equal(result.result.value, true, `Missing field: ${selector}`);
+  }
+  async function evaluate(expression) {
+    return (await send('Runtime.evaluate', { expression, returnByValue: true })).result.value;
+  }
   await visit('aside', 'Klabin', 'Registro de Cargas');
   await visit('main', 'Depósitos Klabin', 'Novo Depósito');
-  await visit('aside', 'Pro Cabos', 'Cargas em Aberto');
-  await visit('main', 'Quitados', 'Cargas Quitadas');
+  // Pro Cabos is hidden from the sidebar (PRO_CABOS_TAB_VISIBLE = false).
+  assert.equal(await evaluate(`[...document.querySelectorAll('aside button')].some(b => b.textContent.includes('Pro Cabos'))`), false, 'Pro Cabos should be hidden');
+  // Mão de Obra: right below Klabin; register 1.500 t of a R$ 150,00/t product, then settle it (fresh profile only).
+  assert.match(await evaluate(`[...document.querySelectorAll('aside button')].map(b => b.textContent).join('|')`), /Klabin[^|]*\|Mão de Obra/);
+  await visit('aside', 'Mão de Obra', 'Lançamentos Pendentes');
+  await visit('main', 'Cadastro', 'Nome do produto', true);
+  await fill('#mob-cad-produto', 'Produto de verificação');
+  await fill('#mob-cad-preco', '150,00');
+  await visit('main', 'Adicionar produto', 'Produto de verificação', true);
+  await visit('main', 'Principal (0)', 'Lançamentos Pendentes', true);
+  const productId = await evaluate(`[...document.querySelectorAll('#mob-produto-novo option')].find(o => o.textContent === 'Produto de verificação')?.value`);
+  assert.ok(productId, 'Registered product is not selectable');
+  await fill('#mob-produto-novo', productId);
+  await fill('#mob-tons-novo', '1.500');
+  assert.equal(await evaluate(`document.querySelector('#mob-valor-novo').value`), '225.000,00', 'Automatic value per ton');
+  await visit('main', 'Lançar', 'Lançamentos Pendentes (1)', true);
+  assert.match(await evaluate(`document.querySelector('main tbody').innerText.replace(/\\s+/g, ' ')`), /1\.500,00 .*R\$ 225\.000,00/);
+  await visit('main', 'Quitar', 'Lançamentos Pendentes (0)', true);
+  await visit('main', 'Quitados (1)', 'Lançamentos Quitados (1)', true);
+  await visit('main', 'Reverter', 'Lançamentos Quitados (0)', true);
   await visit('aside', 'Clientes & Produtos', 'Lançamento de Vendas Diretas');
   await visit('main', 'Catálogo de Produtos', 'Novo Produto');
   await visit('aside', 'Gestão de Motoristas', 'Contas de Frete por Motorista');

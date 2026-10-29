@@ -1,6 +1,7 @@
 import { AppSettings, KlabinDatabase } from '../../types';
 import { normalizeIsoDate, normalizeIsoTimestamp } from '../formatters';
 import { getProCabosLaborRate, isProCabosCarga } from '../proCabos';
+import { sanitizeMaoDeObraClientes, sanitizeMaoDeObraLancamentos, sanitizeMaoDeObraProdutos } from '../maoDeObra';
 
 /**
  * Sanitizes the database object by removing corrupt/phantom entries from Cargas, Depositos, Clientes, Vendas, Produtos
@@ -15,6 +16,9 @@ export function sanitizeDatabase(rawDb: any): KlabinDatabase {
       Vendas: [],
       Produtos: [],
       Motoristas: [],
+      MaoDeObra_Lancamentos: [],
+      MaoDeObra_Clientes: [],
+      MaoDeObra_Produtos: [],
     };
   }
 
@@ -374,6 +378,9 @@ export function sanitizeDatabase(rawDb: any): KlabinDatabase {
     Vendas: cleanVendas,
     Produtos: cleanProdutos,
     Motoristas: finalMotoristas,
+    MaoDeObra_Lancamentos: sanitizeMaoDeObraLancamentos(rawDb.MaoDeObra_Lancamentos),
+    MaoDeObra_Clientes: sanitizeMaoDeObraClientes(rawDb.MaoDeObra_Clientes),
+    MaoDeObra_Produtos: sanitizeMaoDeObraProdutos(rawDb.MaoDeObra_Produtos),
   };
 }
 

@@ -2,8 +2,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isValidId(id) {
-      return id is string && id.size() > 0 && id.size() <= 128;
+    // Fase 2: o acesso ao banco não exige apenas uma sessão no Firebase Auth,
+    // mas que essa sessão seja a conta do dono do aplicativo. O login é feito
+    // pelo Google (signInWithCredential) em src/utils/googleAuth.ts, então
+    // request.auth.token.email carrega o e-mail da conta Google autenticada.
+    // Sem sessão iniciada, o app continua funcionando só com armazenamento local.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner() {
+      return isSignedIn()
+        && request.auth.token.email == 'cesarmartinstaborda@gmail.com';
     }
 
     function isVerifiedGoogle() {
@@ -13,33 +23,46 @@ service cloud.firestore {
     }
 
     match /cargas/{cargaId} {
-      allow read, write: if isVerifiedGoogle();
+      allow read, write: if isOwner() && isVerifiedGoogle();
     }
 
     match /depositos/{depositoId} {
-      allow read, write: if isVerifiedGoogle();
+      allow read, write: if isOwner() && isVerifiedGoogle();
     }
 
     match /clientes/{clienteId} {
-      allow read, write: if isVerifiedGoogle();
+      allow read, write: if isOwner() && isVerifiedGoogle();
     }
 
     match /vendas/{vendaId} {
-      allow read, write: if isVerifiedGoogle();
+      allow read, write: if isOwner() && isVerifiedGoogle();
     }
 
     match /produtos/{produtoId} {
-      allow read, write: if isVerifiedGoogle();
+      allow read, write: if isOwner() && isVerifiedGoogle();
     }
 
     match /motoristas/{motoristaId} {
-      allow read, write: if isVerifiedGoogle();
+      allow read, write: if isOwner() && isVerifiedGoogle();
+    }
+
+    // Módulo Mão de Obra: lançamentos e cadastros próprios.
+    match /maoDeObraLancamentos/{lancamentoId} {
+      allow read, write: if isOwner() && isVerifiedGoogle();
+    }
+
+    match /maoDeObraClientes/{clienteId} {
+      allow read, write: if isOwner() && isVerifiedGoogle();
+    }
+
+    match /maoDeObraProdutos/{produtoId} {
+      allow read, write: if isOwner() && isVerifiedGoogle();
     }
 
     match /settings/{settingId} {
       // O listener atual lista a coleção, mas só settings/global é gravado.
-      allow read: if isVerifiedGoogle();
-      allow create, update: if isVerifiedGoogle() && settingId == 'global';
+      allow read: if isOwner() && isVerifiedGoogle();
+      allow create, update: if isOwner() && isVerifiedGoogle() && settingId == 'global';
       allow delete: if false;
     }
 

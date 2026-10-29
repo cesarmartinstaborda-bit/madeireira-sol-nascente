@@ -1,6 +1,7 @@
 export type TableType =
   | 'Dashboard'
   | 'Klabin'
+  | 'MaoDeObra'
   | 'ProCabos'
   | 'Clientes_Produtos'
   | 'Motoristas'
@@ -138,6 +139,42 @@ export interface MotoristaRecord {
   createdAt?: string;
 }
 
+/**
+ * Cadastros e lançamentos do módulo Mão de Obra. São independentes de Clientes/Produtos
+ * de vendas. Campos opcionais ausentes ficam como `null` (nunca `undefined`): o Firestore
+ * grava com merge, então só um `null` explícito apaga um valor antigo na nuvem.
+ */
+export interface MaoDeObraClienteRecord {
+  id: string;
+  name: string;
+  createdAt: string | null;
+}
+export interface MaoDeObraProdutoRecord {
+  id: string;
+  name: string;
+  /** Preço de referência (R$/t) usado só para sugerir o valor de lançamentos novos. */
+  pricePerTon: number | null;
+  createdAt: string | null;
+}
+export interface MaoDeObraLancamentoRecord {
+  id: string;
+  clientId: string | null;
+  /** Nome do cliente na data do lançamento; mantém o registro legível se o cadastro sumir. */
+  clientName: string | null;
+  productId: string | null;
+  productName: string | null;
+  date: string | null;
+  quantityTons: number | null;
+  /** Preço R$/t usado no cálculo, gravado no lançamento; não acompanha mudanças do cadastro. */
+  pricePerTon: number | null;
+  /** Valor total gravado; `null` = valor ainda não conhecido (não é R$ 0,00). */
+  totalValue: number | null;
+  /** O valor foi digitado pelo usuário e não deve ser recalculado automaticamente. */
+  totalValueManual: boolean;
+  status: 'PENDING' | 'PAID';
+  paidAt: string | null;
+  createdAt: string | null;
+}
 export interface CompanySettings {
   name: string;
   cnpj?: string;
@@ -176,6 +213,9 @@ export interface KlabinDatabase {
   Clientes?: ClientRecord[];
   Vendas?: VendaRecord[];
   Produtos?: ProdutoRecord[];
+  MaoDeObra_Lancamentos?: MaoDeObraLancamentoRecord[];
+  MaoDeObra_Clientes?: MaoDeObraClienteRecord[];
+  MaoDeObra_Produtos?: MaoDeObraProdutoRecord[];
   appSettings?: AppSettings;
   customLogo?: string;
 }

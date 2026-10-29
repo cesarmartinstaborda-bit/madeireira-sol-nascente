@@ -1,9 +1,11 @@
 import React, { useRef } from 'react';
 import { TableType } from '../types';
+import { PRO_CABOS_TAB_VISIBLE } from '../utils/proCabos';
 import {
   LayoutDashboard,
   Building2,
   Cable,
+  HardHat,
   Users,
   Truck,
   Settings,
@@ -25,6 +27,7 @@ interface SidebarProps {
     Produtos: number;
     Historico: number;
     ProCabos: number;
+    MaoDeObra: number;
   };
   customLogo?: string;
   onUpdateCustomLogo: (logoBase64: string | undefined) => void;
@@ -42,7 +45,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Exactly the 5 main modules
-  const menuItems: {
+  const allMenuItems: {
     id: TableType;
     label: string;
     sublabel: string;
@@ -61,6 +64,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       sublabel: 'Cargas & Depósitos',
       icon: Building2,
       count: counts.Cargas + counts.Depositos_Klabin,
+    },
+    {
+      id: 'MaoDeObra',
+      label: 'Mão de Obra',
+      sublabel: 'Toneladas & Quitação',
+      icon: HardHat,
+      count: counts.MaoDeObra,
     },
     {
       id: 'ProCabos',
@@ -97,6 +107,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Settings,
     },
   ];
+  const menuItems = allMenuItems.filter((item) => PRO_CABOS_TAB_VISIBLE || item.id !== 'ProCabos');
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

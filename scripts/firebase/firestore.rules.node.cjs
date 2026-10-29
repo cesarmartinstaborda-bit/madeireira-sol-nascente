@@ -16,7 +16,7 @@ if (existsSync(resolve(root, 'firebase.json'))) {
   assert.equal(deployment.firestore.database, config.firestoreDatabaseId, 'Local deploy target must match the app named database');
 }
 const databases = ['(default)']; // Named database rule loading is unsupported by this CLI emulator.
-const entities = ['cargas', 'depositos', 'clientes', 'vendas', 'produtos', 'motoristas'];
+const entities = ['cargas', 'depositos', 'clientes', 'vendas', 'produtos', 'motoristas', 'maoDeObraLancamentos', 'maoDeObraClientes', 'maoDeObraProdutos'];
 const ownerPolicy = readFileSync(resolve(root, 'firestore.rules'), 'utf8').match(/token.email == '([^']+)'/);
 const ownerEmail = ownerPolicy?.[1] ?? 'owner@example.invalid';
 const claims = { sub: 'owner-test', email: ownerEmail, email_verified: true, firebase: { sign_in_provider: 'google.com' } };

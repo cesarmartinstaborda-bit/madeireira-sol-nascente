@@ -19,8 +19,21 @@ import {
   VendaRecord,
   ProdutoRecord,
   MotoristaRecord,
+  MaoDeObraClienteRecord,
+  MaoDeObraLancamentoRecord,
+  MaoDeObraProdutoRecord,
 } from '../types';
 import { sortByDateDescending } from './dateSorting';
+import {
+  clearAllPendingFirestoreDeletes,
+  clearPendingFirestoreDelete,
+  clearPendingFirestoreRestore,
+  hasPendingFirestoreRestore,
+  markPendingFirestoreRestore,
+  pendingDeleteIds,
+  queueFirestoreDelete,
+  readPendingFirestoreDeletes,
+} from './firestorePendingOps';
 import firebaseConfigJson from '../../firebase-applet-config.json';
 
 // Read Firebase configuration directly from config json with fallback to Vite environment
@@ -162,7 +175,15 @@ export type FirestoreCollectionKey =
   | 'clientes'
   | 'vendas'
   | 'produtos'
-  | 'motoristas';
+  | 'motoristas'
+  | 'maoDeObraLancamentos'
+  | 'maoDeObraClientes'
+  | 'maoDeObraProdutos';
+
+const FIRESTORE_COLLECTION_KEYS: FirestoreCollectionKey[] = [
+  'cargas', 'depositos', 'clientes', 'vendas', 'produtos', 'motoristas',
+  'maoDeObraLancamentos', 'maoDeObraClientes', 'maoDeObraProdutos',
+];
 
 interface PendingFirestoreUpsert {
   collection: FirestoreCollectionKey;
@@ -175,7 +196,7 @@ function readPendingFirestoreUpserts(): PendingFirestoreUpsert[] {
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((item): item is PendingFirestoreUpsert =>
       Boolean(item?.record?.id) &&
-      ['cargas', 'depositos', 'clientes', 'vendas', 'produtos', 'motoristas'].includes(item?.collection)
+      FIRESTORE_COLLECTION_KEYS.includes(item?.collection)
     );
   } catch {
     return [];
@@ -219,6 +240,8 @@ function queueFirestoreUpsert(collectionKey: FirestoreCollectionKey, record: Rec
   );
   pending.push({ collection: collectionKey, record: cleanRecord });
   writePendingFirestoreUpserts(pending);
+  // Gravar de novo o mesmo documento supera uma exclusão ainda não confirmada.
+  clearPendingFirestoreDelete(collectionKey, String(cleanRecord.id));
   return cleanRecord;
 }
 
@@ -253,7 +276,11 @@ function overlayPendingFirestoreUpserts<T extends { id: string }>(
   collectionKey: FirestoreCollectionKey,
   remoteRecords: T[]
 ): T[] {
-  const recordsById = new Map(remoteRecords.map((record) => [String(record.id), record]));
+  // Documentos com exclusão local ainda não confirmada não voltam pelo snapshot remoto.
+  const deleting = pendingDeleteIds(collectionKey);
+  const recordsById = new Map(
+    remoteRecords.filter((record) => !deleting.has(String(record.id))).map((record) => [String(record.id), record])
+  );
   for (const pending of readPendingFirestoreUpserts()) {
     if (pending.collection === collectionKey) {
       recordsById.set(String(pending.record.id), pending.record as T);
@@ -267,6 +294,12 @@ function overlayPendingFirestoreUpserts<T extends { id: string }>(
  */
 export function toFirestoreCollectionName(name: string): FirestoreCollectionKey | null {
   const normalized = name.toLowerCase().replace(/[^a-z]/g, '');
+  // Antes das regras genéricas: "maoDeObraClientes" também contém "cliente".
+  if (normalized.includes('maodeobra')) {
+    if (normalized.includes('cliente')) return 'maoDeObraClientes';
+    if (normalized.includes('produto')) return 'maoDeObraProdutos';
+    return 'maoDeObraLancamentos';
+  }
   if (normalized.includes('carga')) return 'cargas';
   if (normalized.includes('deposito')) return 'depositos';
   if (normalized.includes('cliente')) return 'clientes';
@@ -298,10 +331,19 @@ export async function upsertFirestoreRecord(
   }
 }
 
-/** Retries writes that were made locally while Firestore was unavailable or unauthenticated. */
+/** Retries writes and deletes made locally while Firestore was unavailable or unauthenticated. */
 export async function flushPendingFirestoreUpserts(): Promise<void> {
   const firestore = getFirestoreDb();
   if (!firestore) return;
+
+  for (const pending of readPendingFirestoreDeletes()) {
+    try {
+      await deleteDoc(doc(firestore, pending.collection, pending.id));
+      clearPendingFirestoreDelete(pending.collection, pending.id);
+    } catch (error) {
+      console.warn(`[Firestore] Exclusão pendente mantida para nova tentativa (${pending.collection}/${pending.id}):`, error);
+    }
+  }
 
   for (const pending of readPendingFirestoreUpserts()) {
     try {
@@ -323,14 +365,17 @@ export async function deleteFirestoreRecord(
 ): Promise<void> {
   if (!id) return;
   const colKey = toFirestoreCollectionName(collectionName) || (collectionName.toLowerCase() as FirestoreCollectionKey);
-  // An explicit delete supersedes any older local upsert for this document.
+  // An explicit delete supersedes any older local upsert for this document. It stays
+  // queued until the server confirms it, so a snapshot cannot resurrect the record.
   discardPendingFirestoreUpsert(colKey, id);
+  queueFirestoreDelete(colKey, id);
   const firestore = getFirestoreDb();
   if (!firestore) return;
 
   try {
     const docRef = doc(firestore, colKey, String(id));
     await deleteDoc(docRef);
+    clearPendingFirestoreDelete(colKey, id);
   } catch (error) {
     console.error(`[Firestore Error] delete ${colKey}/${id}:`, error);
   }
@@ -377,6 +422,11 @@ export function isDemoDatabase(database: KlabinDatabase): boolean {
   const hasNonDemoVenda = (database.Vendas || []).some((v) => !demoVendaIds.has(v.id));
   const hasNonDemoProduto = (database.Produtos || []).some((p) => !demoProdIds.has(p.id));
   const hasNonDemoMotorista = (database.Motoristas || []).some((m) => !demoMotIds.has(m.id));
+  // O módulo Mão de Obra não tem dados de demonstração: qualquer registro é real.
+  const hasMaoDeObra =
+    (database.MaoDeObra_Lancamentos || []).length > 0 ||
+    (database.MaoDeObra_Clientes || []).length > 0 ||
+    (database.MaoDeObra_Produtos || []).length > 0;
 
   return !(
     hasNonDemoCarga ||
@@ -384,7 +434,8 @@ export function isDemoDatabase(database: KlabinDatabase): boolean {
     hasNonDemoCliente ||
     hasNonDemoVenda ||
     hasNonDemoProduto ||
-    hasNonDemoMotorista
+    hasNonDemoMotorista ||
+    hasMaoDeObra
   );
 }
 
@@ -397,7 +448,7 @@ export async function checkAndSeedFirestoreIfEmpty(database: KlabinDatabase): Pr
   if (!firestore) return false;
 
   try {
-    const [cargasSnap, depositosSnap, clientesSnap, vendasSnap, produtosSnap, motoristasSnap] =
+    const [cargasSnap, depositosSnap, clientesSnap, vendasSnap, produtosSnap, motoristasSnap, ...maoDeObraSnaps] =
       await Promise.all([
         getDocs(collection(firestore, 'cargas')),
         getDocs(collection(firestore, 'depositos')),
@@ -405,6 +456,9 @@ export async function checkAndSeedFirestoreIfEmpty(database: KlabinDatabase): Pr
         getDocs(collection(firestore, 'vendas')),
         getDocs(collection(firestore, 'produtos')),
         getDocs(collection(firestore, 'motoristas')),
+        getDocs(collection(firestore, 'maoDeObraLancamentos')),
+        getDocs(collection(firestore, 'maoDeObraClientes')),
+        getDocs(collection(firestore, 'maoDeObraProdutos')),
       ]);
 
     const isCompletelyEmpty =
@@ -413,7 +467,8 @@ export async function checkAndSeedFirestoreIfEmpty(database: KlabinDatabase): Pr
       clientesSnap.empty &&
       vendasSnap.empty &&
       produtosSnap.empty &&
-      motoristasSnap.empty;
+      motoristasSnap.empty &&
+      maoDeObraSnaps.every((snap) => snap.empty);
 
     if (isCompletelyEmpty) {
       if (isDemoDatabase(database)) {
@@ -431,6 +486,9 @@ export async function checkAndSeedFirestoreIfEmpty(database: KlabinDatabase): Pr
         for (const v of database.Vendas || []) await upsertFirestoreRecord('vendas', v);
         for (const p of database.Produtos || []) await upsertFirestoreRecord('produtos', p);
         for (const m of database.Motoristas || []) await upsertFirestoreRecord('motoristas', m);
+        for (const l of database.MaoDeObra_Lancamentos || []) await upsertFirestoreRecord('maoDeObraLancamentos', l);
+        for (const c of database.MaoDeObra_Clientes || []) await upsertFirestoreRecord('maoDeObraClientes', c);
+        for (const p of database.MaoDeObra_Produtos || []) await upsertFirestoreRecord('maoDeObraProdutos', p);
         if (database.appSettings || database.customLogo) {
           await syncFirestoreSettings({
             appSettings: database.appSettings,
@@ -487,7 +545,7 @@ export function subscribeToFirestore(
     const unsubCargas = onSnapshot(
       collection(firestore, 'cargas'),
       (snap) => {
-        if (isSyncSuspended) return;
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
         if (isUnconfirmedEmptySnapshot(snap, 'cargas')) return;
         recordSuccessfulSync();
         let list: CargaRecord[] = [];
@@ -506,7 +564,7 @@ export function subscribeToFirestore(
     const unsubDepositos = onSnapshot(
       collection(firestore, 'depositos'),
       (snap) => {
-        if (isSyncSuspended) return;
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
         if (isUnconfirmedEmptySnapshot(snap, 'depositos')) return;
         recordSuccessfulSync();
         let list: DepositoKlabinRecord[] = [];
@@ -522,7 +580,7 @@ export function subscribeToFirestore(
     const unsubClientes = onSnapshot(
       collection(firestore, 'clientes'),
       (snap) => {
-        if (isSyncSuspended) return;
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
         if (isUnconfirmedEmptySnapshot(snap, 'clientes')) return;
         recordSuccessfulSync();
         let list: ClientRecord[] = [];
@@ -538,7 +596,7 @@ export function subscribeToFirestore(
     const unsubVendas = onSnapshot(
       collection(firestore, 'vendas'),
       (snap) => {
-        if (isSyncSuspended) return;
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
         if (isUnconfirmedEmptySnapshot(snap, 'vendas')) return;
         recordSuccessfulSync();
         let list: VendaRecord[] = [];
@@ -554,7 +612,7 @@ export function subscribeToFirestore(
     const unsubProdutos = onSnapshot(
       collection(firestore, 'produtos'),
       (snap) => {
-        if (isSyncSuspended) return;
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
         if (isUnconfirmedEmptySnapshot(snap, 'produtos')) return;
         recordSuccessfulSync();
         let list: ProdutoRecord[] = [];
@@ -570,7 +628,7 @@ export function subscribeToFirestore(
     const unsubMotoristas = onSnapshot(
       collection(firestore, 'motoristas'),
       (snap) => {
-        if (isSyncSuspended) return;
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
         if (isUnconfirmedEmptySnapshot(snap, 'motoristas')) return;
         recordSuccessfulSync();
         let list: MotoristaRecord[] = [];
@@ -582,11 +640,57 @@ export function subscribeToFirestore(
     );
     unsubscribes.push(unsubMotoristas);
 
-    // 7. Settings (global doc)
+    // 7–9. Mão de Obra (lançamentos e cadastros próprios do módulo)
+    const unsubMaoDeObraLancamentos = onSnapshot(
+      collection(firestore, 'maoDeObraLancamentos'),
+      (snap) => {
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'maoDeObraLancamentos')) return;
+        recordSuccessfulSync();
+        let list: MaoDeObraLancamentoRecord[] = [];
+        snap.forEach((d) => list.push({ ...d.data(), id: d.id } as MaoDeObraLancamentoRecord));
+        list = overlayPendingFirestoreUpserts('maoDeObraLancamentos', list);
+        onCollectionUpdate('MaoDeObra_Lancamentos', sortByDateDescending(list, (l) => l.date, (l) => l.createdAt));
+      },
+      (err) => console.error('[Firestore Error] snapshot maoDeObraLancamentos:', err)
+    );
+    unsubscribes.push(unsubMaoDeObraLancamentos);
+
+    const unsubMaoDeObraClientes = onSnapshot(
+      collection(firestore, 'maoDeObraClientes'),
+      (snap) => {
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'maoDeObraClientes')) return;
+        recordSuccessfulSync();
+        let list: MaoDeObraClienteRecord[] = [];
+        snap.forEach((d) => list.push({ ...d.data(), id: d.id } as MaoDeObraClienteRecord));
+        list = overlayPendingFirestoreUpserts('maoDeObraClientes', list);
+        onCollectionUpdate('MaoDeObra_Clientes', list);
+      },
+      (err) => console.error('[Firestore Error] snapshot maoDeObraClientes:', err)
+    );
+    unsubscribes.push(unsubMaoDeObraClientes);
+
+    const unsubMaoDeObraProdutos = onSnapshot(
+      collection(firestore, 'maoDeObraProdutos'),
+      (snap) => {
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
+        if (isUnconfirmedEmptySnapshot(snap, 'maoDeObraProdutos')) return;
+        recordSuccessfulSync();
+        let list: MaoDeObraProdutoRecord[] = [];
+        snap.forEach((d) => list.push({ ...d.data(), id: d.id } as MaoDeObraProdutoRecord));
+        list = overlayPendingFirestoreUpserts('maoDeObraProdutos', list);
+        onCollectionUpdate('MaoDeObra_Produtos', list);
+      },
+      (err) => console.error('[Firestore Error] snapshot maoDeObraProdutos:', err)
+    );
+    unsubscribes.push(unsubMaoDeObraProdutos);
+
+    // 10. Settings (global doc)
     const unsubSettings = onSnapshot(
       collection(firestore, 'settings'),
       (snap) => {
-        if (isSyncSuspended) return;
+        if (isSyncSuspended || hasPendingFirestoreRestore()) return;
         if (isUnconfirmedEmptySnapshot(snap, 'settings')) return;
         recordSuccessfulSync();
         snap.forEach((d) => {
@@ -627,13 +731,23 @@ export function subscribeToFirestore(
 export async function restoreFirestoreAuthoritatively(
   database: KlabinDatabase
 ): Promise<{ success: boolean; error?: any }> {
-  // The restored database is the new explicit source of truth. Older local
-  // writes must not be replayed after this replacement.
-  writePendingFirestoreUpserts([]);
+  // The restored database is the new explicit source of truth. The restore is
+  // marked as pending until the server confirms it: without login or connection,
+  // local data and queued operations are kept and the restore is retried on the
+  // next login (see useKlabinDatabase) instead of being lost.
   const firestore = getFirestoreDb();
   if (!firestore) {
+    // Local-only mode: there is no cloud to reconcile.
+    writePendingFirestoreUpserts([]);
+    clearAllPendingFirestoreDeletes();
+    clearPendingFirestoreRestore();
     return { success: true };
   }
+  markPendingFirestoreRestore();
+  // Operations already queued are part of `database` and are written by this restore;
+  // only those may be dropped on success. Newer ones made meanwhile stay queued.
+  const upsertsAtStart = new Set(readPendingFirestoreUpserts().map((item) => JSON.stringify(item)));
+  const deletesAtStart = readPendingFirestoreDeletes();
 
   setFirestoreSyncSuspended(true);
 
@@ -648,6 +762,9 @@ export async function restoreFirestoreAuthoritatively(
       { key: 'vendas', records: database.Vendas || [] },
       { key: 'produtos', records: database.Produtos || [] },
       { key: 'motoristas', records: database.Motoristas || [] },
+      { key: 'maoDeObraLancamentos', records: database.MaoDeObra_Lancamentos || [] },
+      { key: 'maoDeObraClientes', records: database.MaoDeObra_Clientes || [] },
+      { key: 'maoDeObraProdutos', records: database.MaoDeObra_Produtos || [] },
     ];
 
     interface QueuedOp {
@@ -723,6 +840,9 @@ export async function restoreFirestoreAuthoritatively(
       await batch.commit();
     }
 
+    writePendingFirestoreUpserts(readPendingFirestoreUpserts().filter((item) => !upsertsAtStart.has(JSON.stringify(item))));
+    for (const item of deletesAtStart) clearPendingFirestoreDelete(item.collection, item.id);
+    clearPendingFirestoreRestore();
     setFirestoreSyncSuspended(false);
     return { success: true };
   } catch (error) {
